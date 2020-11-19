@@ -40,19 +40,17 @@ def form_input(entries):
     for entry, (title, type, *choices) in entries.items():
         # Print title and choices if needed
         print(f" === {title} === ")
-        for i, choice in enumerate(choices, start=1):
-            print(f" [{i}] {choice}")
+        for choice in choices:
+            print(f" - {choice}")
 
         # Different input methods for the types
         if type == "w":
             response = input("Text: (one line) ")
         elif type == "m" :
-            line = input("Choice: (type number in brackets) ")
-            response = choices[int(line.strip()) - 1]
+            response = input("Choice: (type choice) ")
         elif type == "c":
-            line = input("Checkboxes: (type number in brackets separated by commas) ")
-            indices = [int(part.strip()) - 1 for part in line.split(",")]
-            responses = [choices[i] for i in indices]
+            line = input("Checkboxes: (type choices separated by commas) ")
+            responses = [part.strip() for part in line.split(",")]
         elif type == "d":
             response = input("Date: (format as MM/DD/YYYY) ").split("/")
         elif type == "t":
