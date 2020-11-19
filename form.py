@@ -77,10 +77,18 @@ def form_input(entries):
     # Formatted request payload
     return data
 
+
 def main():
+    import requests
+    LINK = "https://docs.google.com/forms/d/e/1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ/formResponse"
+
     data = form_input(ENTRIES)
     print(data)
 
+    response = requests.post(LINK, data=data)
+    print(response.status_code, response.reason)
+
+    input("Press enter to continue...")
+
 if __name__ == "__main__":
     main()
-    input("Press enter to continue...")
