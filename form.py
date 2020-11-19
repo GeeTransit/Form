@@ -37,7 +37,7 @@ ENTRIES = {
 }
 
 # Interactive form input
-def main(entries=ENTRIES):
+def form_input(entries):
     data = {}
     for entry, (title, type, *choices) in entries.items():
         # Print title and choices if needed
@@ -75,6 +75,10 @@ def main(entries=ENTRIES):
         data |= format_response(entry, type, response)
 
     # Formatted request payload
+    return data
+
+def main():
+    data = form_input(ENTRIES)
     print(data)
 
 if __name__ == "__main__":
