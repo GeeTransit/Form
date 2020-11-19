@@ -56,14 +56,12 @@ def form_input(entries):
                 lines.append(line)
             response = "\n".join(lines)
         elif type in {"Multiple Choice", "Dropdown"}:
-            index = int(input(f"{type}: (type number in brackets) "))
-            response = choices[index - 1]
+            line = input(f"{type}: (type number in brackets) ")
+            response = choices[int(line.strip()) - 1]
         elif type == "Checkboxes":
-            print("Checkboxes: (type number in brackets, empty line to end)")
-            indices = []
-            while line := input():
-                indices.append(int(line) - 1)
-            response = [choices[i] for i in indices]
+            line = input("Checkboxes: (type number in brackets separated by commas) ")
+            indices = [int(part.strip()) - 1 for part in line.split(",")]
+            responses = [choices[i] for i in indices]
         elif type == "Date":
             response = input("Date: (format as MM/DD/YYYY) ").split("/")
         elif type == "Time":
