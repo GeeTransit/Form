@@ -23,6 +23,28 @@ def format_response(entry, type, response, *, required=True):
         raise ValueError(f"Entry {entry} is required: {response!r}")
     return FORMATS[type](entry, response)
 
+# Parsing functions (one str argument)
+def parse_words(response):
+    return response
+def parse_multiple_choice(response):
+    return response
+def parse_checkboxes(response):
+    return list(map(str.strip, response.split(",")))
+def parse_date(response):
+    return response.split("/")
+def parse_time(response):
+    return response.split(":")
+
+PARSERS = {
+    "w": parse_words,
+    "m": parse_multiple_choice,
+    "c": parse_checkboxes,
+    "d": parse_date,
+    "t": parse_time,
+}
+def parse_response(response, type):
+    return PARSERS[type](response)
+
 # Taken from https://docs.google.com/forms/d/e/1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ/viewform
 ENTRIES = {
     2126808200: ["Short Answer", "w"],
@@ -32,6 +54,14 @@ ENTRIES = {
     2116902388: ["Dropdown", "m", "Option 1", "Option 2"],
     465882654: ["Date", "d"],
     1049988990: ["Time", "t"],
+}
+
+PROMPTS = {
+    "w": "Text: (one line)",
+    "m": "Choice: (type choice)",
+    "c": "Checkboxes: (type choices separated by commas)",
+    "d": "Date: (format as MM/DD/YYYY)",
+    "t": "Date: (format as HH:MM)",
 }
 
 # Interactive form input
@@ -44,19 +74,10 @@ def form_input(entries):
             print(f" - {choice}")
 
         # Different input methods for the types
-        if type == "w":
-            response = input("Text: (one line) ")
-        elif type == "m" :
-            response = input("Choice: (type choice) ")
-        elif type == "c":
-            line = input("Checkboxes: (type choices separated by commas) ")
-            responses = [part.strip() for part in line.split(",")]
-        elif type == "d":
-            response = input("Date: (format as MM/DD/YYYY) ").split("/")
-        elif type == "t":
-            response = input("Date: (format as HH:MM) ").split(":")
-        else:
-            raise ValueError(f"Unknown type: {type!r}")
+        line = input(PROMPTS[type] + " ")
+
+        # Parse the given input
+        response = parse_response(line, type)
 
         # Format the responses into a dict
         data |= format_response(entry, type, response)
