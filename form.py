@@ -11,6 +11,8 @@ def format_date(entry, response):
 def format_time(entry, response):
     keys = [f"entry.{entry}_hour", f"entry.{entry}_minute"]
     return dict(zip(keys, response))
+def format_extra(key, response):
+    return {key: response}
 
 # General formatting function (uses a `type` argument)
 FORMATS = {
@@ -19,6 +21,7 @@ FORMATS = {
     "c": format_normal,
     "d": format_date,
     "t": format_time,
+    "x": format_extra,
 }
 def format_response(entry, type, response, *, required=True):
     if required and not response:
@@ -36,6 +39,8 @@ def parse_date(response):
     return response.split("/")
 def parse_time(response):
     return response.split(":")
+def parse_extra(response):
+    return response
 
 PARSERS = {
     "w": parse_words,
@@ -43,6 +48,7 @@ PARSERS = {
     "c": parse_checkboxes,
     "d": parse_date,
     "t": parse_time,
+    "x": parse_extra,
 }
 def parse_response(response, type):
     return PARSERS[type](response)
@@ -52,6 +58,7 @@ def parse_response(response, type):
 # w-1000;Question=Default
 # *!t-1001;Time=
 # c-1002;Languages=Python,Java,C++
+# *!x-emailAddress;Email Address=
 ConfigLine = namedtuple("ConfigLine", "required prompt type key title value")
 def split_config(line):
     required = line[0] == "*"
@@ -61,7 +68,7 @@ def split_config(line):
     line = line.removeprefix("!")
 
     type, split, line = line.partition("-")
-    if type not in {*"wmcdt"}:
+    if type not in {*"wmcdtx"}:
         raise ValueError(f"Type not valid: {type}")
     if not split:
         raise ValueError("Missing type-key split '-'")
@@ -87,6 +94,7 @@ PROMPTS = {
     "c": "[Checkboxes (comma-separated)]",
     "d": "[Date MM/DD/YYYY]",
     "t": "[Time HH:MM]",
+    "x": "[Extra Data]",
 }
 
 # Change URLs with viewform -> formResponse
