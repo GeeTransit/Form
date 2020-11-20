@@ -11,8 +11,8 @@ def format_date(entry, response):
 def format_time(entry, response):
     keys = [f"entry.{entry}_hour", f"entry.{entry}_minute"]
     return dict(zip(keys, response))
-def format_extra(key, response):
-    return {key: response}
+def format_extra(entry, response):
+    return {entry: response}
 
 # General formatting function (uses a `type` argument)
 FORMATS = {
@@ -23,15 +23,15 @@ FORMATS = {
     "t": format_time,
     "x": format_extra,
 }
-def format_response(key, type, response, *, required=True):
+def format_response(entry, type, response, *, required=True):
     """
     Return a dictionary to be POSTed to the form.
 
-    Format the key and response into a dict using the type. The result
+    Format the entry and response into a dict using the type. The result
     should be merged to the data dictionary.
     """
     if required and not response:
-        raise ValueError(f"Response for key {key} is required: {response!r}")
+        raise ValueError(f"Response for entry {entry} is required: {response!r}")
     return FORMATS[type](entry, response)
 
 # Parsing functions (one str argument)
@@ -65,12 +65,12 @@ def parse_response(response, type):
     """
     return PARSERS[type](response)
 
-ConfigLine = namedtuple("ConfigLine", "required prompt type key title value")
+ConfigLine = namedtuple("ConfigLine", "required prompt type entry title value")
 def split_config(line):
     """
     Return info on a config file line.
 
-    Parse a string of the format `[*] [!] type - key ; title = value`.
+    Parse a string of the format `[*] [!] type - entry ; title = value`.
 
     Examples:
         w-1000;Question=Default
@@ -88,25 +88,25 @@ def split_config(line):
     if type not in {*"wmcdtx"}:
         raise ValueError(f"Type not valid: {type}")
     if not split:
-        raise ValueError("Missing type-key split '-'")
+        raise ValueError("Missing type-entry split '-'")
 
-    key, split, line = line.partition(";")
-    if not key:
-        raise ValueError("Missing key")
+    entry, split, line = line.partition(";")
+    if not entry:
+        raise ValueError("Missing entry")
     if not split:
-        raise ValueError("Missing key-title split ';'")
+        raise ValueError("Missing entry-title split ';'")
 
     title, split, value = line.partition("=")
     if not title:
-        title = key  # Title defaults to the key if absent.
+        title = entry  # Title defaults to the entry if absent.
     if not split:
         raise ValueError("Missing title-value split '='")
 
-    key = key.strip()
+    entry = entry.strip()
     title = title.strip()
     value = value.strip()
 
-    return ConfigLine(required, prompt, type, key, title, value)
+    return ConfigLine(required, prompt, type, entry, title, value)
 
 PROMPTS = {
     "w": "[Text]",
@@ -142,7 +142,7 @@ def form_config(config_file):
     """
     data = {}
     for config_line in config_file:
-        required, prompt, type, key, title, value = split_config(config_line.rstrip())
+        required, prompt, type, entry, title, value = split_config(config_line.rstrip())
         if not prompt:
             line = value
         elif line := input(f"{title}: {PROMPTS[type]} ").strip():
@@ -151,7 +151,7 @@ def form_config(config_file):
             line = value
             print(f"Using default: {line}")
         response = parse_response(line, type)
-        data |= format_response(key, type, response, required=required)
+        data |= format_response(entry, type, response, required=required)
     return data
 
 def main():
