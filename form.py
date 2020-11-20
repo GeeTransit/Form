@@ -78,17 +78,6 @@ def split_config(line):
 
     return ConfigLine(prompt, type, key.strip(), title.strip(), value.strip())
 
-# Taken from https://docs.google.com/forms/d/e/1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ/viewform
-ENTRIES = {
-    2126808200: ["Short Answer", "w"],
-    647036320: ["Paragraph", "w"],
-    363426485: ["Multiple Choice", "m", "Option 1", "Option 2"],
-    1142411773: ["Checkboxes", "c", "Option 1", "Option 2"],
-    2116902388: ["Dropdown", "m", "Option 1", "Option 2"],
-    465882654: ["Date", "d"],
-    1049988990: ["Time", "t"],
-}
-
 PROMPTS = {
     "w": "[Text]",
     "m": "[Choice]",
@@ -96,27 +85,6 @@ PROMPTS = {
     "d": "[Date MM/DD/YYYY]",
     "t": "[Time HH:MM]",
 }
-
-# Interactive form input
-def form_input(entries):
-    data = {}
-    for entry, (title, type, *choices) in entries.items():
-        # Print title and choices if needed
-        print(f" === {title} === ")
-        for choice in choices:
-            print(f" - {choice}")
-
-        # Different input methods for the types
-        line = input(PROMPTS[type] + " ")
-
-        # Parse the given input
-        response = parse_response(line, type)
-
-        # Format the responses into a dict
-        data |= format_response(entry, type, response)
-
-    # Formatted request payload
-    return data
 
 # Change URLs with viewform -> formResponse
 def fix_url(url):
