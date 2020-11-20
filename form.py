@@ -139,8 +139,8 @@ def form_config(file):
             if line := input(PROMPTS[type] + " ").strip():
                 response = line
             else:
-                print(f"Using default: {value}")
                 response = value
+                print(f"Using default: {response}")
 
         response = parse_response(value, type)
         data |= format_response(key, type, response)
@@ -148,16 +148,25 @@ def form_config(file):
     return FormData(url, data)
 
 def main():
+    import sys
+
+    if len(sys.argv) <= 1 or not sys.argv[1]:
+        name = "config.txt"
+        print(f"Using default filename: {name}")
+    else:
+        name = sys.argv[1]
+
+    with open(name) as file:
+        url, data = form_config(file)
+    print(f"Form data: {data}")
+
+    if input("Should the form be submitted? (Y/N) ") not in {*"Yy"}:
+        print("Exiting...")
+        return
+
     import requests
-    LINK = "https://docs.google.com/forms/d/e/1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ/formResponse"
-
-    data = form_input(ENTRIES)
-    print(data)
-
-    response = requests.post(LINK, data=data)
-    print(response.status_code, response.reason)
-
-    input("Press enter to continue...")
+    response = requests.post(url, data=data)
+    print(f"Response: {response.status_code} {response.reason}")
 
 if __name__ == "__main__":
     main()
