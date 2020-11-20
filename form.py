@@ -4,14 +4,18 @@ from collections import namedtuple
 # Specialized functions (entry, response -> dict[str, str])
 def format_normal(entry, response):
     return {f"entry.{entry}": response}
+
 def format_sentinel(entry, response):
     return {f"entry.{entry}": response, f"entry.{entry}_sentinel": ""}
+
 def format_date(entry, response):
     keys = [f"entry.{entry}_month", f"entry.{entry}_day", f"entry.{entry}_year"]
     return dict(zip(keys, response))
+
 def format_time(entry, response):
     keys = [f"entry.{entry}_hour", f"entry.{entry}_minute"]
     return dict(zip(keys, response))
+
 def format_extra(entry, response):
     return {entry: response}
 
@@ -38,17 +42,20 @@ def parse_words(response):
     return response
 def parse_multiple_choice(response):
     return response
+
 def parse_checkboxes(response):
     responses = list(map(str.strip, response.split(",")))
     if not all(responses):
         raise ValueError("Empty choice in responses: {response}")
     return responses
+
 def parse_date(response):
     month, day, year = response.split("/")
     if len(month) != 2 or len(day) != 2 or len(year) != 4:
         raise ValueError("Incorrect date format: MM/DD/YYYY")
     date(int(year), int(month), int(day))  # Test if date is real
     return [month, day, year]
+
 def parse_time(response):
     hour, minute = response.split(":")
     if len(hour) != 2 or len(minute) != 2:
