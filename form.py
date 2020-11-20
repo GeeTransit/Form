@@ -145,7 +145,6 @@ def form_config(config_file):
 
 def main():
     import sys
-
     if len(sys.argv) <= 1 or not sys.argv[1]:
         name = "config.txt"
         print(f"Using default filename: {name}")
@@ -160,11 +159,16 @@ def main():
         data = form_config(file)
         print(f"Form data: {data}")
 
+    try:
+        import requests
+    except ImportError:
+        print("Exiting...")
+        return
+
     if input("Should the form be submitted? (Y/N) ") not in {*"Yy"}:
         print("Exiting...")
         return
 
-    import requests
     print("Submitting form...")
     response = requests.post(url, data=data)
     print(f"Response: {response.status_code} {response.reason}")
