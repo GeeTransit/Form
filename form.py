@@ -142,5 +142,9 @@ def main():
     print(f"Response: {response.status_code} {response.reason}")
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except:
+        import traceback
+        traceback.print_exc()
     input("Press enter to continue...")
