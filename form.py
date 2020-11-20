@@ -23,15 +23,13 @@ FORMATS = {
     "t": format_time,
     "x": format_extra,
 }
-def format_response(entry, type, response, *, required=True):
+def format_response(entry, type, response):
     """
     Return a dictionary to be POSTed to the form.
 
     Format the entry and response into a dict using the type. The result
     should be merged to the data dictionary.
     """
-    if required and not response:
-        raise ValueError(f"Response for entry {entry} is required: {response!r}")
     return FORMATS[type](entry, response)
 
 # Parsing functions (one str argument)
@@ -145,14 +143,29 @@ def form_config(config_file):
     for config_line in config_file:
         required, prompt, type, entry, title, value = split_config(config_line.rstrip())
         if not prompt:
-            line = value
-        elif line := input(f"{title}: {PROMPTS[type]} ").strip():
-            line = line
+            if required and not value:
+                raise ValueError(f"Response for entry '{title}' is required")
+            response = parse_response(value, type)
         else:
-            print(f"Using default value: {value}")
-            line = value
-        response = parse_response(line, type)
-        data |= format_response(entry, type, response, required=required)
+            while True:
+                line = input(f"{title}: {PROMPTS[type]} ").strip()
+                if not line:
+                    if required and not value:
+                        print(f"Response for entry '{title}' is required")
+                        continue
+                    print(f"Using default value: {value}")
+                    line = value
+                try:
+                    response = parse_response(line, type)
+                except ValueError as e:
+                    if not required and not line:
+                        # If line isn't empty, it could be a mistake.
+                        # Only skip when it is purposefully left empty.
+                        break
+                    print(repr(e))
+                else:
+                    break
+        data |= format_response(entry, type, response)
     return data
 
 def main():
@@ -174,11 +187,11 @@ def main():
     try:
         import requests
     except ImportError:
-        print("Form cannot be submitted (missing requests library).")
+        print("Form cannot be submitted (missing requests library)")
         return
 
     if input("Should the form be submitted? (Y/N) ") not in {*"Yy"}:
-        print("Form will not be submitted.")
+        print("Form will not be submitted")
         return
 
     print("Submitting form...")
