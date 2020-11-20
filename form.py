@@ -1,6 +1,6 @@
 from collections import namedtuple
 
-# Specialized functions (response -> dict[str, response])
+# Specialized functions (entry, response -> dict[str, str])
 def format_normal(entry, response):
     return {f"entry.{entry}": response}
 def format_sentinel(entry, response):
@@ -74,7 +74,8 @@ def split_config(line):
 
     Examples:
         w-1000;Question=Default
-        *!t-1001;Time=
+        !t-1001;Date=
+        *m-1001;Class=
         c-1002;Languages=Python,Java,C++
         *!x-emailAddress;Email Address=
     """
@@ -148,8 +149,8 @@ def form_config(config_file):
         elif line := input(f"{title}: {PROMPTS[type]} ").strip():
             line = line
         else:
+            print(f"Using default value: {value}")
             line = value
-            print(f"Using default: {line}")
         response = parse_response(line, type)
         data |= format_response(entry, type, response, required=required)
     return data
@@ -173,16 +174,16 @@ def main():
     try:
         import requests
     except ImportError:
-        print("Exiting...")
+        print("Form cannot be submitted (missing requests library).")
         return
 
     if input("Should the form be submitted? (Y/N) ") not in {*"Yy"}:
-        print("Exiting...")
+        print("Form will not be submitted.")
         return
 
     print("Submitting form...")
     response = requests.post(url, data=data)
-    print(f"Response: {response.status_code} {response.reason}")
+    print(f"Response received (200 is good): {response.status_code} {response.reason}")
 
 if __name__ == "__main__":
     try:
@@ -190,4 +191,4 @@ if __name__ == "__main__":
     except:
         import traceback
         traceback.print_exc()
-    input("Press enter to continue...")
+    input("Press enter to close the program...")
