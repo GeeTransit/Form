@@ -1,3 +1,4 @@
+from datetime import date, time
 from collections import namedtuple
 
 # Specialized functions (entry, response -> dict[str, str])
@@ -38,11 +39,22 @@ def parse_words(response):
 def parse_multiple_choice(response):
     return response
 def parse_checkboxes(response):
-    return list(map(str.strip, response.split(",")))
+    responses = list(map(str.strip, response.split(",")))
+    if not all(responses):
+        raise ValueError("Empty choice in responses: {response}")
+    return responses
 def parse_date(response):
-    return response.split("/")
+    month, day, year = response.split("/")
+    if len(month) != 2 or len(day) != 2 or len(year) != 4:
+        raise ValueError("Incorrect date format: MM/DD/YYYY")
+    date(int(year), int(month), int(day))  # Test if date is real
+    return [month, day, year]
 def parse_time(response):
-    return response.split(":")
+    hour, minute = response.split(":")
+    if len(hour) != 2 or len(minute) != 2:
+        raise ValueError("Incorrect time format: HH:MM")
+    time(int(hour), int(minute))  # Test if time is real
+    return [hour, minute]
 def parse_extra(response):
     return response
 
