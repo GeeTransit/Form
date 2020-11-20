@@ -85,7 +85,7 @@ def parse_response(response, type):
     """
     return PARSERS[type](response)
 
-class ConfigInfo(NamedTuple):
+class EntryInfo(NamedTuple):
     required: bool
     prompt: bool
     type: str
@@ -93,7 +93,7 @@ class ConfigInfo(NamedTuple):
     title: str
     value: str
 
-def split_config(line):
+def split_entry(line):
     """
     Return info on a config file line.
 
@@ -135,7 +135,7 @@ def split_config(line):
     title = title.strip()
     value = value.strip()
 
-    return ConfigInfo(required, prompt, type, entry, title, value)
+    return EntryInfo(required, prompt, type, entry, title, value)
 
 PROMPTS = {
     "w": "[Text]",
@@ -171,7 +171,7 @@ def form_config(config_file):
     """
     data = {}
     for config_line in config_file:
-        required, prompt, type, entry, title, value = split_config(config_line.rstrip())
+        required, prompt, type, entry, title, value = split_entry(config_line.rstrip())
         if not prompt:
             if required and not value:
                 raise ValueError(f"Response for entry '{title}' is required")
