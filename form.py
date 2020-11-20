@@ -107,9 +107,13 @@ def split_entry(line):
         c-1002;Languages=Python,Java,C++
         *!x-emailAddress;Email Address=
     """
+    if not line:
+        raise ValueError("Empty entry")
     required = (line[0] == "*")
     line = line.removeprefix("*")
 
+    if not line:
+        raise ValueError("Missing type")
     prompt = (line[0] == "!")
     line = line.removeprefix("!")
 
@@ -200,6 +204,11 @@ def form_config(config_file):
 
 def main():
     import sys
+
+    if len(sys.argv) > 2:
+        print("Too many arguments. Usage: python form.py [filename]")
+        return
+
     if len(sys.argv) <= 1 or not sys.argv[1]:
         name = "config.txt"
         print(f"Using default filename: {name}")
