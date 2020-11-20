@@ -50,10 +50,13 @@ def parse_response(response, type):
 # Parse a config file line (format `[!] type - key ; title = value`)
 # Examples:
 # w-1000;Question=Default
-# !t-1001;Time=
+# *!t-1001;Time=
 # c-1002;Languages=Python,Java,C++
-ConfigLine = namedtuple("ConfigLine", "prompt type key title value")
+ConfigLine = namedtuple("ConfigLine", "required prompt type key title value")
 def split_config(line):
+    required = line[0] == "*"
+    line = line.removeprefix("*")
+
     prompt = line[0] == "!"
     line = line.removeprefix("!")
 
@@ -76,7 +79,7 @@ def split_config(line):
     if not title:
         title = key
 
-    return ConfigLine(prompt, type, key.strip(), title.strip(), value.strip())
+    return ConfigLine(required, prompt, type, key.strip(), title.strip(), value.strip())
 
 PROMPTS = {
     "w": "[Text]",
@@ -98,7 +101,7 @@ def fix_url(url):
 def form_config(config_file):
     data = {}
     for config_line in config_file:
-        prompt, type, key, title, value = split_config(config_line.rstrip())
+        required, prompt, type, key, title, value = split_config(config_line.rstrip())
         if not prompt:
             line = value
         elif line := input(f"{title}: {PROMPTS[type]} ").strip():
@@ -108,7 +111,7 @@ def form_config(config_file):
             print(f"Using default: {line}")
 
         response = parse_response(line, type)
-        data |= format_response(key, type, response)
+        data |= format_response(key, type, response, required=required)
     return data
 
 def main():
