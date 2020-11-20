@@ -143,7 +143,7 @@ def form_config(file):
                 response = value
                 print(f"Using default: {response}")
 
-        response = parse_response(value, type)
+        response = parse_response(response, type)
         data |= format_response(key, type, response)
     return data
 
