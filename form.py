@@ -1,3 +1,5 @@
+from collections import namedtuple
+
 # Specialized functions (response -> dict[str, response])
 def format_normal(entry, response):
     return {f"entry.{entry}": response}
@@ -50,6 +52,7 @@ def parse_response(response, type):
 # w-1000;Question=Default
 # !t-1001;Time=
 # c-1002;Languages=Python,Java,C++
+ConfigLine = namedtuple("ConfigLine", "prompt type key title value")
 def split_config(line):
     prompt = line[0] == "!"
     line = line.removeprefix("!")
@@ -73,13 +76,7 @@ def split_config(line):
     if not title:
         title = key
 
-    return {
-        "prompt": prompt,
-        "type": type,
-        "key": key.strip(),
-        "title": title.strip(),
-        "value": value.strip(),
-    }
+    return ConfigLine(prompt, type, key.strip(), title.strip(), value.strip())
 
 # Taken from https://docs.google.com/forms/d/e/1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ/viewform
 ENTRIES = {
@@ -122,6 +119,7 @@ def form_input(entries):
     return data
 
 # Interactive form input from config file
+FormData = namedtuple("FormData", "url data")
 def form_config(file):
     url = file.readline().rstrip()  # Remove trailing newline
     if not url.endswith("formResponse"):
@@ -132,14 +130,7 @@ def form_config(file):
     data = {}
     for line in file:
         line = line.rstrip()  # Remove trailing newline
-
-        config = split_config(line)
-        prompt = config["prompt"]
-        type = config["type"]
-        key = config["key"]
-        title = config["title"]
-        value = config["value"]
-
+        prompt, type, key, title, value = split_config(line)
         if not prompt:
             response = value
         else:
@@ -154,7 +145,7 @@ def form_config(file):
         response = parse_response(value, type)
         data |= format_response(key, type, response)
 
-    return data
+    return FormData(url, data)
 
 def main():
     import requests
@@ -170,3 +161,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    input("Press enter to continue...")
