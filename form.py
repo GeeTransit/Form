@@ -38,9 +38,7 @@ def format_response(entry, type, response):
     return FORMATS[type](entry, response)
 
 # Parsing functions (one str argument)
-def parse_words(response):
-    return response
-def parse_multiple_choice(response):
+def parse_normal(response):
     return response
 
 def parse_checkboxes(response):
@@ -62,16 +60,14 @@ def parse_time(response):
         raise ValueError("Incorrect time format: HH:MM")
     time(int(hour), int(minute))  # Test if time is real
     return [hour, minute]
-def parse_extra(response):
-    return response
 
 PARSERS = {
-    "w": parse_words,
-    "m": parse_multiple_choice,
+    "w": parse_normal,
+    "m": parse_normal,
     "c": parse_checkboxes,
     "d": parse_date,
     "t": parse_time,
-    "x": parse_extra,
+    "x": parse_normal,
 }
 def parse_response(response, type):
     """
