@@ -118,15 +118,16 @@ def form_input(entries):
     # Formatted request payload
     return data
 
-# Interactive form input from config file
-FormData = namedtuple("FormData", "url data")
-def form_config(file):
-    url = file.readline().rstrip()  # Remove trailing newline
+# Change URLs with viewform -> formResponse
+def fix_url(url):
     if not url.endswith("formResponse"):
         if not url.endswith("viewform"):
             raise ValueError("URL cannot be converted into POST link")
         url = url.removesuffix("viewform") + "formResponse"
+    return url
 
+# Interactive form input from config file
+def form_config(file):
     data = {}
     for line in file:
         line = line.rstrip()  # Remove trailing newline
@@ -144,8 +145,7 @@ def form_config(file):
 
         response = parse_response(value, type)
         data |= format_response(key, type, response)
-
-    return FormData(url, data)
+    return data
 
 def main():
     import sys
@@ -157,8 +157,10 @@ def main():
         name = sys.argv[1]
 
     with open(name) as file:
-        url, data = form_config(file)
-    print(f"Form data: {data}")
+        url = fix_url(file.readline().rstrip())
+        print(f"Form URL: {url}")
+        data = form_config(file)
+        print(f"Form data: {data}")
 
     if input("Should the form be submitted? (Y/N) ") not in {*"Yy"}:
         print("Exiting...")
