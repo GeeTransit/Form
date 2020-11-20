@@ -90,11 +90,11 @@ ENTRIES = {
 }
 
 PROMPTS = {
-    "w": "Text: (one line)",
-    "m": "Choice: (type choice)",
-    "c": "Checkboxes: (type choices separated by commas)",
-    "d": "Date: (format as MM/DD/YYYY)",
-    "t": "Date: (format as HH:MM)",
+    "w": "[Text]",
+    "m": "[Choice]",
+    "c": "[Checkboxes (comma-separated)]",
+    "d": "[Date MM/DD/YYYY]",
+    "t": "[Time HH:MM]",
 }
 
 # Interactive form input
@@ -127,23 +127,19 @@ def fix_url(url):
     return url
 
 # Interactive form input from config file
-def form_config(file):
+def form_config(config_file):
     data = {}
-    for line in file:
-        line = line.rstrip()  # Remove trailing newline
-        prompt, type, key, title, value = split_config(line)
+    for config_line in config_file:
+        prompt, type, key, title, value = split_config(config_line.rstrip())
         if not prompt:
-            response = value
+            line = value
+        elif line := input(f"{title}: {PROMPTS[type]} ").strip():
+            line = line
         else:
-            print(f" === {title} === ")
-            # Different input prompts for the types
-            if line := input(PROMPTS[type] + " ").strip():
-                response = line
-            else:
-                response = value
-                print(f"Using default: {response}")
+            line = value
+            print(f"Using default: {line}")
 
-        response = parse_response(response, type)
+        response = parse_response(line, type)
         data |= format_response(key, type, response)
     return data
 
@@ -155,7 +151,9 @@ def main():
         print(f"Using default filename: {name}")
     else:
         name = sys.argv[1]
+        print(f"Using config file: {name}")
 
+    print("Reading config...")
     with open(name) as file:
         url = fix_url(file.readline().rstrip())
         print(f"Form URL: {url}")
@@ -167,6 +165,7 @@ def main():
         return
 
     import requests
+    print("Submitting form...")
     response = requests.post(url, data=data)
     print(f"Response: {response.status_code} {response.reason}")
 
