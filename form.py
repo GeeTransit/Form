@@ -23,9 +23,15 @@ FORMATS = {
     "t": format_time,
     "x": format_extra,
 }
-def format_response(entry, type, response, *, required=True):
+def format_response(key, type, response, *, required=True):
+    """
+    Return a dictionary to be POSTed to the form.
+
+    Format the key and response into a dict using the type. The result
+    should be merged to the data dictionary.
+    """
     if required and not response:
-        raise ValueError(f"Entry {entry} is required: {response!r}")
+        raise ValueError(f"Response for key {key} is required: {response!r}")
     return FORMATS[type](entry, response)
 
 # Parsing functions (one str argument)
@@ -51,20 +57,31 @@ PARSERS = {
     "x": parse_extra,
 }
 def parse_response(response, type):
+    """
+    Return a string / list[str] as the response.
+
+    Parse the string using the type. The result should be passed to
+    formatters.
+    """
     return PARSERS[type](response)
 
-# Parse a config file line (format `[!] type - key ; title = value`)
-# Examples:
-# w-1000;Question=Default
-# *!t-1001;Time=
-# c-1002;Languages=Python,Java,C++
-# *!x-emailAddress;Email Address=
 ConfigLine = namedtuple("ConfigLine", "required prompt type key title value")
 def split_config(line):
-    required = line[0] == "*"
+    """
+    Return info on a config file line.
+
+    Parse a string of the format `[*] [!] type - key ; title = value`.
+
+    Examples:
+        w-1000;Question=Default
+        *!t-1001;Time=
+        c-1002;Languages=Python,Java,C++
+        *!x-emailAddress;Email Address=
+    """
+    required = (line[0] == "*")
     line = line.removeprefix("*")
 
-    prompt = line[0] == "!"
+    prompt = (line[0] == "!")
     line = line.removeprefix("!")
 
     type, split, line = line.partition("-")
@@ -80,13 +97,16 @@ def split_config(line):
         raise ValueError("Missing key-title split ';'")
 
     title, split, value = line.partition("=")
+    if not title:
+        title = key  # Title defaults to the key if absent.
     if not split:
         raise ValueError("Missing title-value split '='")
 
-    if not title:
-        title = key
+    key = key.strip()
+    title = title.strip()
+    value = value.strip()
 
-    return ConfigLine(required, prompt, type, key.strip(), title.strip(), value.strip())
+    return ConfigLine(required, prompt, type, key, title, value)
 
 PROMPTS = {
     "w": "[Text]",
@@ -99,6 +119,12 @@ PROMPTS = {
 
 # Change URLs with viewform -> formResponse
 def fix_url(url):
+    """
+    Return a URL that can be POSTed to.
+
+    The url can end with formResponse, or it can end with viewform, which
+    is changed to formResponse.
+    """
     if not url.endswith("formResponse"):
         if not url.endswith("viewform"):
             raise ValueError("URL cannot be converted into POST link")
@@ -107,6 +133,13 @@ def fix_url(url):
 
 # Interactive form input from config file
 def form_config(config_file):
+    """
+    Return a dictionary to be POSTed to the form.
+
+    Use the config_file to create a dictionary containing entries and
+    other data. The result should be POSTed to a URL as the data
+    argument.
+    """
     data = {}
     for config_line in config_file:
         required, prompt, type, key, title, value = split_config(config_line.rstrip())
@@ -117,7 +150,6 @@ def form_config(config_file):
         else:
             line = value
             print(f"Using default: {line}")
-
         response = parse_response(line, type)
         data |= format_response(key, type, response, required=required)
     return data
