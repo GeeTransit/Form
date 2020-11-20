@@ -34,6 +34,10 @@ def format_response(entry, type, response):
 
     Format the entry and response into a dict using the type. The result
     should be merged to the data dictionary.
+
+    Formatter functions shouldn't raise exceptions if supplied the proper
+    response from the parser functions. Don't give a string from
+    parse_words to format_time.
     """
     return FORMATS[type](entry, response)
 
@@ -75,6 +79,9 @@ def parse_response(response, type):
 
     Parse the string using the type. The result should be passed to
     formatters.
+
+    Parser functions can raise ValueError if the string doesn't match the
+    format of the type.
     """
     return PARSERS[type](response)
 
@@ -84,6 +91,7 @@ def split_config(line):
     Return info on a config file line.
 
     Parse a string of the format `[*] [!] type - entry ; title = value`.
+    Return a named tuple with the config info.
 
     Examples:
         w-1000;Question=Default
@@ -172,7 +180,7 @@ def form_config(config_file):
                     line = value
                 try:
                     response = parse_response(line, type)
-                except ValueError as e:
+                except Exception as e:
                     if not required and not line:
                         # If line isn't empty, it could be a mistake.
                         # Only skip when it is purposefully left empty.
@@ -211,7 +219,7 @@ def main():
 
     print("Submitting form...")
     response = requests.post(url, data=data)
-    print(f"Response received (200 is good): {response.status_code} {response.reason}")
+    print(f"Response received (200s are good): {response.status_code} {response.reason}")
 
 if __name__ == "__main__":
     try:
