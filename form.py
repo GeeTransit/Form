@@ -1,5 +1,5 @@
 from datetime import date, time
-from collections import namedtuple
+from typing import NamedTuple
 
 # Specialized functions (entry, response -> dict[str, str])
 def format_normal(entry, response):
@@ -85,7 +85,14 @@ def parse_response(response, type):
     """
     return PARSERS[type](response)
 
-ConfigLine = namedtuple("ConfigLine", "required prompt type entry title value")
+class ConfigInfo(NamedTuple):
+    required: bool
+    prompt: bool
+    type: str
+    entry: str
+    title: str
+    value: str
+
 def split_config(line):
     """
     Return info on a config file line.
@@ -128,7 +135,7 @@ def split_config(line):
     title = title.strip()
     value = value.strip()
 
-    return ConfigLine(required, prompt, type, entry, title, value)
+    return ConfigInfo(required, prompt, type, entry, title, value)
 
 PROMPTS = {
     "w": "[Text]",
