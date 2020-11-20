@@ -45,6 +45,42 @@ PARSERS = {
 def parse_response(response, type):
     return PARSERS[type](response)
 
+# Parse a config file line (format `[!] type - key ; title = value`)
+# Examples:
+# w-1000;Question=Default
+# !t-1001;Time=
+# c-1002;Languages=Python,Java,C++
+def split_config(line):
+    prompt = line[0] == "!"
+    line = line.removeprefix("!")
+
+    type, split, line = line.partition("-")
+    if type not in {*"wmcdt"}:
+        raise ValueError(f"Type not valid: {type}")
+    if not split:
+        raise ValueError("Missing type-key split '-'")
+
+    key, split, line = line.partition(";")
+    if not key:
+        raise ValueError("Missing key")
+    if not split:
+        raise ValueError("Missing key-title split ';'")
+
+    title, split, value = line.partition("=")
+    if not split:
+        raise ValueError("Missing title-value split '='")
+
+    if not title:
+        title = key
+
+    return {
+        "prompt": prompt,
+        "type": type,
+        "key": key.strip(),
+        "title": title.strip(),
+        "value": value.strip(),
+    }
+
 # Taken from https://docs.google.com/forms/d/e/1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ/viewform
 ENTRIES = {
     2126808200: ["Short Answer", "w"],
@@ -85,6 +121,40 @@ def form_input(entries):
     # Formatted request payload
     return data
 
+# Interactive form input from config file
+def form_config(file):
+    url = file.readline().rstrip()  # Remove trailing newline
+    if not url.endswith("formResponse"):
+        if not url.endswith("viewform"):
+            raise ValueError("URL cannot be converted into POST link")
+        url = url.removesuffix("viewform") + "formResponse"
+
+    data = {}
+    for line in file:
+        line = line.rstrip()  # Remove trailing newline
+
+        config = split_config(line)
+        prompt = config["prompt"]
+        type = config["type"]
+        key = config["key"]
+        title = config["title"]
+        value = config["value"]
+
+        if not prompt:
+            response = value
+        else:
+            print(f" === {title} === ")
+            # Different input prompts for the types
+            if line := input(PROMPTS[type] + " ").strip():
+                response = line
+            else:
+                print(f"Using default: {value}")
+                response = value
+
+        response = parse_response(value, type)
+        data |= format_response(key, type, response)
+
+    return data
 
 def main():
     import requests
