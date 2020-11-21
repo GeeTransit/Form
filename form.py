@@ -59,7 +59,7 @@ def parse_normal(value):
 def parse_checkboxes(value):
     messages = list(map(str.strip, value.split(",")))
     if not all(messages):
-        raise ValueError("Empty choice in value: {value}")
+        raise ValueError(f"Empty choice in value: {value}")
     return messages
 
 def parse_date(value):
@@ -297,7 +297,7 @@ def main():
         return
 
     print("Submitting form...")
-    response = requests.post(url, data=data)
+    response = requests.post(config.url, data=data)
     print(f"Response received (200s are good): {response.status_code} {response.reason}")
 
 if __name__ == "__main__":
