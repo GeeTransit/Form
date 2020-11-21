@@ -164,6 +164,12 @@ class EntryInfo:
 
         return cls(required, prompt, type, key, title, value)
 
+def test_EntryInfo_from_string():
+    # TODO: Add tests for ValueError
+    default = EntryInfo(True, True, "words", "key", "title", "value")
+    assert EntryInfo.from_string("*!words-key;title=value") == default
+    assert EntryInfo.from_string("* ! words - key ; title = value") == default
+
 ID_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
 def to_form_url(string):
     """
