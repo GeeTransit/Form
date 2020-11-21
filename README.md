@@ -22,7 +22,7 @@ Now, double clicking or dragging a file to *run.bat* will use the virtual enviro
 The *config.txt* file starts with the link to the Google Form (just copy from the address bar). The following lines have the following form:
 
 ```
-["*"] ["!"] type "-" entry ";" [title] "=" [value]
+["*"] ["!"] type "-" key ";" [title] "=" [value]
 ```
 
 The star "\*" means that this entry is mandatory. An empty value will be rejected.
@@ -40,7 +40,7 @@ The `type` can be one of "w", "m", "c", "d", "t", or "x". They specify different
 | t    | Time (HH:MM)                 |
 | x    | Extra Data                   |
 
-The `entry` identifies the entry. It can be the entry ID in the form `entry.<id>` or just the key in the data (when `type` is "x").
+The `key` identifies the entry. It can be the entry ID in the form `entry.<id>` or just the key in the data (when `type` is "x").
 
 The `title` is a human readable string that identifies the entry. If empty, it defaults to the entry. You can use this to show the question or to keep a description of a data entry.
 
