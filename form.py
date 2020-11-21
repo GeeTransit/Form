@@ -52,7 +52,7 @@ def parse_checkboxes(response):
     return responses
 
 def parse_date(response):
-    if response.split("/") == ["current"]:
+    if response == "current":
         return date.today().strftime("%m/%d/%Y").split("/")
     month, day, year = response.split("/")
     if len(month) != 2 or len(day) != 2 or len(year) != 4:
@@ -61,7 +61,7 @@ def parse_date(response):
     return [month, day, year]
 
 def parse_time(response):
-    if response.split(":") == ["current"]:
+    if response == "current":
         return datetime.now().strftime("%H:%M").split(":")
     hour, minute = response.split(":")
     if len(hour) != 2 or len(minute) != 2:
