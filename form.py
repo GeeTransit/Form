@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import date, time, datetime
 
+TYPES = {"w", "m", "c", "d", "t", "x"}
+
 # Specialized functions (entry, response -> dict[str, str])
 def format_normal(entry, response):
     return {f"entry.{entry}": response}
@@ -98,76 +100,86 @@ class EntryInfo:
     title: str
     value: str
 
-def split_entry(line):
+    @classmethod
+    def from_string(cls, string):
+        """
+        Return info on a config file line.
+
+        Parse a string of the format `[*] [!] type - key ; title = value`.
+        Return a dataclass (simple object) with the config info.
+
+        A string `*!type-key;title=value` would give `EntryInfo(required=True,
+        prompt=True, type="type", key="key", title="title", value="value")`.
+
+        Examples of config lines:
+            w-1000;Question=Default
+            !t-1001;Date=
+            *m-1001;Class=
+            c-1002;Languages=Python,Java,C++
+            *!x-emailAddress;Email Address=
+        """
+        if not string:
+            raise ValueError("Empty entry")
+        required = (string[0] == "*")
+        string = string.removeprefix("*")
+
+        if not string:
+            raise ValueError("Missing type")
+        prompt = (string[0] == "!")
+        string = string.removeprefix("!")
+
+        type, split, string = string.partition("-")
+        if type not in TYPES:
+            raise ValueError(f"Type not valid: {type}")
+        if not split:
+            raise ValueError("Missing type-key split '-'")
+
+        key, split, string = string.partition(";")
+        if not key:
+            raise ValueError("Missing key")
+        if not split:
+            raise ValueError("Missing key-title split ';'")
+
+        title, split, value = string.partition("=")
+        if not title:
+            title = key  # Title defaults to the key if absent.
+        if not split:
+            raise ValueError("Missing title-value split '='")
+
+        key = key.strip()
+        title = title.strip()
+        value = value.strip()
+
+        return cls(required, prompt, type, key, title, value)
+
+ID_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+def to_form_url(string):
     """
-    Return info on a config file line.
+    Return a URL that can be POSTed to.
 
-    Parse a string of the format `[*] [!] type - key ; title = value`.
-    Return a named tuple with the config info.
-
-    Examples:
-        w-1000;Question=Default
-        !t-1001;Date=
-        *m-1001;Class=
-        c-1002;Languages=Python,Java,C++
-        *!x-emailAddress;Email Address=
+    If the string is already the POST URL (ends in formResponse), it is
+    returned. If the string is the GET URL (ends in viewform), it will be
+    converted into a POST URL. If the string is the form's ID, it will be
+    substituted into a URL.
     """
-    if not line:
-        raise ValueError("Empty key")
-    required = (line[0] == "*")
-    line = line.removeprefix("*")
-
-    if not line:
-        raise ValueError("Missing type")
-    prompt = (line[0] == "!")
-    line = line.removeprefix("!")
-
-    type, split, line = line.partition("-")
-    if type not in {*"wmcdtx"}:
-        raise ValueError(f"Type not valid: {type}")
-    if not split:
-        raise ValueError("Missing type-key split '-'")
-
-    key, split, line = line.partition(";")
-    if not key:
-        raise ValueError("Missing key")
-    if not split:
-        raise ValueError("Missing key-title split ';'")
-
-    title, split, value = line.partition("=")
-    if not title:
-        title = key  # Title defaults to the key if absent.
-    if not split:
-        raise ValueError("Missing title-value split '='")
-
-    key = key.strip()
-    title = title.strip()
-    value = value.strip()
-
-    return EntryInfo(required, prompt, type, key, title, value)
+    if set(string) <= ID_CHARS:
+        if len(string) != 56:
+            raise ValueError("Form ID not 56 characters long")
+        return f"https://docs.google.com/forms/d/e/{string}/formResponse"
+    if string.endswith("formResponse"):
+        return string
+    if not string.endswith("viewform"):
+        return string.removesuffix("viewform") + "formResponse"
+    raise ValueError(f"String cannot be converted into POST link: {string}")
 
 PROMPTS = {
     "w": "[Text]",
-    "m": "[Choice]",
+    "m": "[Multiple Choice]",
     "c": "[Checkboxes (comma-separated)]",
     "d": "[Date MM/DD/YYYY]",
     "t": "[Time HH:MM]",
     "x": "[Extra Data]",
 }
-
-# Change URLs with viewform -> formResponse
-def fix_url(url):
-    """
-    Return a URL that can be POSTed to.
-
-    The url can end with formResponse, or it can end with viewform, which
-    is changed to formResponse.
-    """
-    if not url.endswith("formResponse"):
-        if not url.endswith("viewform"):
-            raise ValueError("URL cannot be converted into POST link")
-        url = url.removesuffix("viewform") + "formResponse"
-    return url
 
 def prompt_entry(entry):
     """
@@ -216,9 +228,9 @@ def main():
 
     print("Reading config...")
     with open(name) as file:
-        url = fix_url(file.readline().strip())
+        url = to_form_url(file.readline().strip())
         print(f"Form URL: {url}")
-        entries = [split_entry(line.strip()) for line in file]
+        entries = [EntryInfo.from_string(line.strip()) for line in file]
 
     data = {}
     for entry in entries:
@@ -237,7 +249,7 @@ def main():
         print("Form cannot be submitted (missing requests library)")
         return
 
-    if input("Should the form be submitted? (Y/N) ") not in {*"Yy"}:
+    if input("Should the form be submitted? (Y/N) ").strip().lower() != "y":
         print("Form will not be submitted")
         return
 
@@ -251,4 +263,5 @@ if __name__ == "__main__":
     except:
         import traceback
         traceback.print_exc()
-    input("Press enter to close the program...")
+    finally:
+        input("Press enter to close the program...")
