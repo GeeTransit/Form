@@ -266,30 +266,41 @@ def open_config(file):
         ]
     return ConfigInfo(url, entries)
 
-def main():
+# Returns the passed config file name
+def parse_arguments(argv):
     import sys
 
-    if len(sys.argv) > 2:
+    if len(argv) > 2:
         print("Too many arguments. Usage: python form.py <filename>")
         sys.exit(1)
 
-    if len(sys.argv) <= 1 or not sys.argv[1]:
-        name = "config.txt"
-        print(f"Using default filename: {name}")
-    else:
-        name = sys.argv[1]
-        print(f"Using config file: {name}")
+    if len(argv) == 2:
+        print(f"Using config file: {argv[1]}")
+        return argv[1]
+
+    print("Using default name: config.txt")
+    return "config.txt"
+
+# Returns config info of the passed file name
+def read_config(name):
+    import sys
 
     print("Opening config file...")
     try:
         file = open(name)
     except FileNotFoundError:
-        print(f"Provided file name doesn't exist: {name}")
+        print(f"File doesn't exist: {name}")
         sys.exit(2)
 
     with open(name) as file:
         print("Reading config entries...")
-        config = open_config(file)
+        return open_config(file)
+
+def main():
+    import sys
+
+    name = parse_arguments(sys.argv)
+    config = read_config(name)
     print(f"Form URL: {config.url}")
 
     messages = parse_entries(config.entries, on_prompt=prompt_entry)
