@@ -1,5 +1,5 @@
+from dataclasses import dataclass
 from datetime import date, time
-from typing import NamedTuple
 
 # Specialized functions (entry, response -> dict[str, str])
 def format_normal(entry, response):
@@ -85,7 +85,8 @@ def parse_response(response, type):
     """
     return PARSERS[type](response)
 
-class EntryInfo(NamedTuple):
+@dataclass
+class EntryInfo:
     required: bool
     prompt: bool
     type: str
@@ -164,8 +165,29 @@ def fix_url(url):
         url = url.removesuffix("viewform") + "formResponse"
     return url
 
-# Interactive form input from config file
-def form_config(config_file):
+def prompt_entry(info):
+    """
+    Prompt for a value to the passed entry info.
+    """
+    assert info.prompt
+    while True:
+        line = input(f"{info.title}: {PROMPTS[info.type]} ").strip()
+        if not line:
+            if info.required and not info.value:
+                print(f"Response for entry '{info.title}' is required")
+                continue
+            print(f"Using default value: {info.value}")
+            line = info.value
+        try:
+            return parse_response(line, info.type)
+        except Exception as e:
+            if not info.required and not line:
+                # If line isn't empty, it could be a mistake.
+                # Only skip when it is purposefully left empty.
+                return ""
+            print(repr(e))
+
+def entries(config_file):
     """
     Return a dictionary to be POSTed to the form.
 
@@ -173,34 +195,6 @@ def form_config(config_file):
     other data. The result should be POSTed to a URL as the data
     argument.
     """
-    data = {}
-    for config_line in config_file:
-        required, prompt, type, entry, title, value = split_entry(config_line.rstrip())
-        if not prompt:
-            if required and not value:
-                raise ValueError(f"Response for entry '{title}' is required")
-            response = parse_response(value, type)
-        else:
-            while True:
-                line = input(f"{title}: {PROMPTS[type]} ").strip()
-                if not line:
-                    if required and not value:
-                        print(f"Response for entry '{title}' is required")
-                        continue
-                    print(f"Using default value: {value}")
-                    line = value
-                try:
-                    response = parse_response(line, type)
-                except Exception as e:
-                    if not required and not line:
-                        # If line isn't empty, it could be a mistake.
-                        # Only skip when it is purposefully left empty.
-                        break
-                    print(repr(e))
-                else:
-                    break
-        data |= format_response(entry, type, response)
-    return data
 
 def main():
     import sys
@@ -218,10 +212,20 @@ def main():
 
     print("Reading config...")
     with open(name) as file:
-        url = fix_url(file.readline().rstrip())
+        url = fix_url(file.readline().strip())
         print(f"Form URL: {url}")
-        data = form_config(file)
-        print(f"Form data: {data}")
+        entries = [split_entry(line.strip()) for line in file]
+
+    data = {}
+    for entry in entries:
+        if entry.prompt:
+            response = prompt_entry(entry)
+        elif entry.required and not entry.value:
+            raise ValueError(f"Value for entry '{entry.title}' is required")
+        else:
+            response = parse_response(entry.value, entry.type)
+        data |= format_response(entry.entry, entry.type, response)
+    print(f"Form data: {data}")
 
     try:
         import requests
