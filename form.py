@@ -90,7 +90,7 @@ class EntryInfo:
     required: bool
     prompt: bool
     type: str
-    entry: str
+    key: str
     title: str
     value: str
 
@@ -98,7 +98,7 @@ def split_entry(line):
     """
     Return info on a config file line.
 
-    Parse a string of the format `[*] [!] type - entry ; title = value`.
+    Parse a string of the format `[*] [!] type - key ; title = value`.
     Return a named tuple with the config info.
 
     Examples:
@@ -109,7 +109,7 @@ def split_entry(line):
         *!x-emailAddress;Email Address=
     """
     if not line:
-        raise ValueError("Empty entry")
+        raise ValueError("Empty key")
     required = (line[0] == "*")
     line = line.removeprefix("*")
 
@@ -122,25 +122,25 @@ def split_entry(line):
     if type not in {*"wmcdtx"}:
         raise ValueError(f"Type not valid: {type}")
     if not split:
-        raise ValueError("Missing type-entry split '-'")
+        raise ValueError("Missing type-key split '-'")
 
-    entry, split, line = line.partition(";")
-    if not entry:
-        raise ValueError("Missing entry")
+    key, split, line = line.partition(";")
+    if not key:
+        raise ValueError("Missing key")
     if not split:
-        raise ValueError("Missing entry-title split ';'")
+        raise ValueError("Missing key-title split ';'")
 
     title, split, value = line.partition("=")
     if not title:
-        title = entry  # Title defaults to the entry if absent.
+        title = key  # Title defaults to the key if absent.
     if not split:
         raise ValueError("Missing title-value split '='")
 
-    entry = entry.strip()
+    key = key.strip()
     title = title.strip()
     value = value.strip()
 
-    return EntryInfo(required, prompt, type, entry, title, value)
+    return EntryInfo(required, prompt, type, key, title, value)
 
 PROMPTS = {
     "w": "[Text]",
@@ -165,23 +165,23 @@ def fix_url(url):
         url = url.removesuffix("viewform") + "formResponse"
     return url
 
-def prompt_entry(info):
+def prompt_entry(entry):
     """
-    Prompt for a value to the passed entry info.
+    Prompt for a value to the passed entry.
     """
-    assert info.prompt
+    assert entry.prompt
     while True:
-        line = input(f"{info.title}: {PROMPTS[info.type]} ").strip()
+        line = input(f"{entry.title}: {PROMPTS[entry.type]} ").strip()
         if not line:
-            if info.required and not info.value:
-                print(f"Response for entry '{info.title}' is required")
+            if entry.required and not entry.value:
+                print(f"Response for entry '{entry.title}' is required")
                 continue
-            print(f"Using default value: {info.value}")
-            line = info.value
+            print(f"Using default value: {entry.value}")
+            line = entry.value
         try:
-            return parse_response(line, info.type)
+            return parse_response(line, entry.type)
         except Exception as e:
-            if not info.required and not line:
+            if not entry.required and not line:
                 # If line isn't empty, it could be a mistake.
                 # Only skip when it is purposefully left empty.
                 return ""
@@ -224,7 +224,7 @@ def main():
             raise ValueError(f"Value for entry '{entry.title}' is required")
         else:
             response = parse_response(entry.value, entry.type)
-        data |= format_response(entry.entry, entry.type, response)
+        data |= format_response(entry.key, entry.type, response)
     print(f"Form data: {data}")
 
     try:
