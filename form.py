@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from datetime import date, time
 
+TYPES = {"w", "m", "c", "d", "t", "x"}
+
 # Specialized functions (entry, response -> dict[str, str])
 def format_normal(entry, response):
     return {f"entry.{entry}": response}
@@ -99,9 +101,12 @@ def split_entry(line):
     Return info on a config file line.
 
     Parse a string of the format `[*] [!] type - key ; title = value`.
-    Return a named tuple with the config info.
+    Return a dataclass (simple object) with the config info.
 
-    Examples:
+    A string `*!type-key;title=value` would give `EntryInfo(required=True,
+    prompt=True, type="type", key="key", title="title", value="value")`.
+
+    Examples of config lines:
         w-1000;Question=Default
         !t-1001;Date=
         *m-1001;Class=
@@ -119,7 +124,7 @@ def split_entry(line):
     line = line.removeprefix("!")
 
     type, split, line = line.partition("-")
-    if type not in {*"wmcdtx"}:
+    if type not in TYPES:
         raise ValueError(f"Type not valid: {type}")
     if not split:
         raise ValueError("Missing type-key split '-'")
@@ -144,7 +149,7 @@ def split_entry(line):
 
 PROMPTS = {
     "w": "[Text]",
-    "m": "[Choice]",
+    "m": "[Multiple Choice]",
     "c": "[Checkboxes (comma-separated)]",
     "d": "[Date MM/DD/YYYY]",
     "t": "[Time HH:MM]",
@@ -233,7 +238,7 @@ def main():
         print("Form cannot be submitted (missing requests library)")
         return
 
-    if input("Should the form be submitted? (Y/N) ") not in {*"Yy"}:
+    if input("Should the form be submitted? (Y/N) ").strip().lower() != "y":
         print("Form will not be submitted")
         return
 
@@ -247,4 +252,5 @@ if __name__ == "__main__":
     except:
         import traceback
         traceback.print_exc()
-    input("Press enter to close the program...")
+    finally:
+        input("Press enter to close the program...")
