@@ -1,5 +1,5 @@
+from dataclasses import dataclass
 from datetime import date, time
-from typing import NamedTuple
 
 # Specialized functions (entry, response -> dict[str, str])
 def format_normal(entry, response):
@@ -85,19 +85,20 @@ def parse_response(response, type):
     """
     return PARSERS[type](response)
 
-class ConfigInfo(NamedTuple):
+@dataclass
+class EntryInfo:
     required: bool
     prompt: bool
     type: str
-    entry: str
+    key: str
     title: str
     value: str
 
-def split_config(line):
+def split_entry(line):
     """
     Return info on a config file line.
 
-    Parse a string of the format `[*] [!] type - entry ; title = value`.
+    Parse a string of the format `[*] [!] type - key ; title = value`.
     Return a named tuple with the config info.
 
     Examples:
@@ -107,9 +108,13 @@ def split_config(line):
         c-1002;Languages=Python,Java,C++
         *!x-emailAddress;Email Address=
     """
+    if not line:
+        raise ValueError("Empty key")
     required = (line[0] == "*")
     line = line.removeprefix("*")
 
+    if not line:
+        raise ValueError("Missing type")
     prompt = (line[0] == "!")
     line = line.removeprefix("!")
 
@@ -117,25 +122,25 @@ def split_config(line):
     if type not in {*"wmcdtx"}:
         raise ValueError(f"Type not valid: {type}")
     if not split:
-        raise ValueError("Missing type-entry split '-'")
+        raise ValueError("Missing type-key split '-'")
 
-    entry, split, line = line.partition(";")
-    if not entry:
-        raise ValueError("Missing entry")
+    key, split, line = line.partition(";")
+    if not key:
+        raise ValueError("Missing key")
     if not split:
-        raise ValueError("Missing entry-title split ';'")
+        raise ValueError("Missing key-title split ';'")
 
     title, split, value = line.partition("=")
     if not title:
-        title = entry  # Title defaults to the entry if absent.
+        title = key  # Title defaults to the key if absent.
     if not split:
         raise ValueError("Missing title-value split '='")
 
-    entry = entry.strip()
+    key = key.strip()
     title = title.strip()
     value = value.strip()
 
-    return ConfigInfo(required, prompt, type, entry, title, value)
+    return EntryInfo(required, prompt, type, key, title, value)
 
 PROMPTS = {
     "w": "[Text]",
@@ -160,8 +165,29 @@ def fix_url(url):
         url = url.removesuffix("viewform") + "formResponse"
     return url
 
-# Interactive form input from config file
-def form_config(config_file):
+def prompt_entry(entry):
+    """
+    Prompt for a value to the passed entry.
+    """
+    assert entry.prompt
+    while True:
+        line = input(f"{entry.title}: {PROMPTS[entry.type]} ").strip()
+        if not line:
+            if entry.required and not entry.value:
+                print(f"Response for entry '{entry.title}' is required")
+                continue
+            print(f"Using default value: {entry.value}")
+            line = entry.value
+        try:
+            return parse_response(line, entry.type)
+        except Exception as e:
+            if not entry.required and not line:
+                # If line isn't empty, it could be a mistake.
+                # Only skip when it is purposefully left empty.
+                return ""
+            print(repr(e))
+
+def entries(config_file):
     """
     Return a dictionary to be POSTed to the form.
 
@@ -169,37 +195,14 @@ def form_config(config_file):
     other data. The result should be POSTed to a URL as the data
     argument.
     """
-    data = {}
-    for config_line in config_file:
-        required, prompt, type, entry, title, value = split_config(config_line.rstrip())
-        if not prompt:
-            if required and not value:
-                raise ValueError(f"Response for entry '{title}' is required")
-            response = parse_response(value, type)
-        else:
-            while True:
-                line = input(f"{title}: {PROMPTS[type]} ").strip()
-                if not line:
-                    if required and not value:
-                        print(f"Response for entry '{title}' is required")
-                        continue
-                    print(f"Using default value: {value}")
-                    line = value
-                try:
-                    response = parse_response(line, type)
-                except Exception as e:
-                    if not required and not line:
-                        # If line isn't empty, it could be a mistake.
-                        # Only skip when it is purposefully left empty.
-                        break
-                    print(repr(e))
-                else:
-                    break
-        data |= format_response(entry, type, response)
-    return data
 
 def main():
     import sys
+
+    if len(sys.argv) > 2:
+        print("Too many arguments. Usage: python form.py [filename]")
+        return
+
     if len(sys.argv) <= 1 or not sys.argv[1]:
         name = "config.txt"
         print(f"Using default filename: {name}")
@@ -209,10 +212,20 @@ def main():
 
     print("Reading config...")
     with open(name) as file:
-        url = fix_url(file.readline().rstrip())
+        url = fix_url(file.readline().strip())
         print(f"Form URL: {url}")
-        data = form_config(file)
-        print(f"Form data: {data}")
+        entries = [split_entry(line.strip()) for line in file]
+
+    data = {}
+    for entry in entries:
+        if entry.prompt:
+            response = prompt_entry(entry)
+        elif entry.required and not entry.value:
+            raise ValueError(f"Value for entry '{entry.title}' is required")
+        else:
+            response = parse_response(entry.value, entry.type)
+        data |= format_response(entry.key, entry.type, response)
+    print(f"Form data: {data}")
 
     try:
         import requests
