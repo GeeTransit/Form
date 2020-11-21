@@ -1,6 +1,7 @@
 from collections import namedtuple
 from dataclasses import dataclass
 from datetime import date, time, datetime
+from string import ascii_letters, digits
 
 # See README's Config section for more info
 TYPES = {
@@ -169,7 +170,7 @@ def test_EntryInfo_from_string():
     assert EntryInfo.from_string("*!words-key;title=value") == default
     assert EntryInfo.from_string("* ! words - key ; title = value") == default
 
-ID_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+ID_CHARS = set(ascii_letters + digits + "-_")  # [a-zA-Z0-9_-]
 def to_form_url(string):
     """
     Return a URL that can be POSTed to.
