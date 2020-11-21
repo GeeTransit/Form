@@ -213,6 +213,23 @@ def entries(config_file):
     argument.
     """
 
+def parse_entries(entries, *, on_prompt=prompt_entry):
+    responses = []
+    for entry in entries:
+        if entry.prompt:
+            responses.append(on_prompt(entry))
+        elif entry.required and not entry.value:
+            raise ValueError(f"Value for entry '{entry.title}' is required")
+        else:
+            responses.append(parse_value(entry.value, entry.type))
+    return responses
+
+def format_entries(entries, responses):
+    data = {}
+    for entry, response in zip(entries, responses):
+        data |= format_response(entry.key, entry.type, response)
+    return data
+
 def main():
     import sys
 
@@ -233,15 +250,8 @@ def main():
         print(f"Form URL: {url}")
         entries = [EntryInfo.from_string(string) for line in file if string := line.strip()]
 
-    data = {}
-    for entry in entries:
-        if entry.prompt:
-            response = prompt_entry(entry)
-        elif entry.required and not entry.value:
-            raise ValueError(f"Value for entry '{entry.title}' is required")
-        else:
-            response = parse_value(entry.value, entry.type)
-        data |= format_response(entry.key, entry.type, response)
+    responses = parse_entries(entries, on_prompt=prompt_entry)
+    data = format_entries(entries, responses)
     print(f"Form data: {data}")
 
     try:
