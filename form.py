@@ -96,56 +96,6 @@ class EntryInfo:
     title: str
     value: str
 
-def split_entry(line):
-    """
-    Return info on a config file line.
-
-    Parse a string of the format `[*] [!] type - key ; title = value`.
-    Return a dataclass (simple object) with the config info.
-
-    A string `*!type-key;title=value` would give `EntryInfo(required=True,
-    prompt=True, type="type", key="key", title="title", value="value")`.
-
-    Examples of config lines:
-        w-1000;Question=Default
-        !t-1001;Date=
-        *m-1001;Class=
-        c-1002;Languages=Python,Java,C++
-        *!x-emailAddress;Email Address=
-    """
-    if not line:
-        raise ValueError("Empty key")
-    required = (line[0] == "*")
-    line = line.removeprefix("*")
-
-    if not line:
-        raise ValueError("Missing type")
-    prompt = (line[0] == "!")
-    line = line.removeprefix("!")
-
-    type, split, line = line.partition("-")
-    if type not in TYPES:
-        raise ValueError(f"Type not valid: {type}")
-    if not split:
-        raise ValueError("Missing type-key split '-'")
-
-    key, split, line = line.partition(";")
-    if not key:
-        raise ValueError("Missing key")
-    if not split:
-        raise ValueError("Missing key-title split ';'")
-
-    title, split, value = line.partition("=")
-    if not title:
-        title = key  # Title defaults to the key if absent.
-    if not split:
-        raise ValueError("Missing title-value split '='")
-
-    key = key.strip()
-    title = title.strip()
-    value = value.strip()
-
-    return EntryInfo(required, prompt, type, key, title, value)
 
 PROMPTS = {
     "w": "[Text]",
@@ -155,6 +105,57 @@ PROMPTS = {
     "t": "[Time HH:MM]",
     "x": "[Extra Data]",
 }
+    @classmethod
+    def from_string(cls, string):
+        """
+        Return info on a config file line.
+
+        Parse a string of the format `[*] [!] type - key ; title = value`.
+        Return a dataclass (simple object) with the config info.
+
+        A string `*!type-key;title=value` would give `EntryInfo(required=True,
+        prompt=True, type="type", key="key", title="title", value="value")`.
+
+        Examples of config lines:
+            w-1000;Question=Default
+            !t-1001;Date=
+            *m-1001;Class=
+            c-1002;Languages=Python,Java,C++
+            *!x-emailAddress;Email Address=
+        """
+        if not string:
+            raise ValueError("Empty entry")
+        required = (line[0] == "*")
+        string = string.removeprefix("*")
+
+        if not string:
+            raise ValueError("Missing type")
+        prompt = (string[0] == "!")
+        string = string.removeprefix("!")
+
+        type, split, string = string.partition("-")
+        if type not in TYPES:
+            raise ValueError(f"Type not valid: {type}")
+        if not split:
+            raise ValueError("Missing type-key split '-'")
+
+        key, split, string = string.partition(";")
+        if not key:
+            raise ValueError("Missing key")
+        if not split:
+            raise ValueError("Missing key-title split ';'")
+
+        title, split, value = string.partition("=")
+        if not title:
+            title = key  # Title defaults to the key if absent.
+        if not split:
+            raise ValueError("Missing title-value split '='")
+
+        key = key.strip()
+        title = title.strip()
+        value = value.strip()
+
+        return cls(required, prompt, type, key, title, value)
 
 # Change URLs with viewform -> formResponse
 def fix_url(url):
@@ -219,7 +220,7 @@ def main():
     with open(name) as file:
         url = fix_url(file.readline().strip())
         print(f"Form URL: {url}")
-        entries = [split_entry(line.strip()) for line in file]
+        entries = [EntryInfo.from_string(line.strip()) for line in file]
 
     data = {}
     for entry in entries:
