@@ -3,7 +3,14 @@ from dataclasses import dataclass
 from datetime import date, time, datetime
 
 # See README's Config section for more info
-TYPES = {"w", "m", "c", "d", "t", "x"}
+TYPES = {
+    "words": ["w", "word", "text"],
+    "choice": ["m", "mc", "multiple choice"],
+    "checkboxes": ["c", "checkbox"],
+    "date": ["d"],
+    "time": ["t"],
+    "extra": ["x", "xD", "extra data"],
+}
 
 # Specialized functions (key, message -> dict[str, str])
 def format_normal(key, message):
@@ -25,12 +32,12 @@ def format_extra(key, message):
 
 # General formatting function (uses a `type` argument)
 FORMATS = {
-    "w": format_normal,
-    "m": format_sentinel,
-    "c": format_normal,
-    "d": format_date,
-    "t": format_time,
-    "x": format_extra,
+    "words": format_normal,
+    "choice": format_sentinel,
+    "checkboxes": format_normal,
+    "date": format_date,
+    "time": format_time,
+    "extra": format_extra,
 }
 def format_message(key, type, message):
     """
@@ -74,12 +81,12 @@ def parse_time(value):
     return [hour, minute]
 
 PARSERS = {
-    "w": parse_normal,
-    "m": parse_normal,
-    "c": parse_checkboxes,
-    "d": parse_date,
-    "t": parse_time,
-    "x": parse_normal,
+    "words": parse_normal,
+    "choice": parse_normal,
+    "checkboxes": parse_checkboxes,
+    "date": parse_date,
+    "time": parse_time,
+    "extra": parse_normal,
 }
 def parse_value(value, type):
     """
@@ -116,10 +123,10 @@ class EntryInfo:
 
         Examples of config lines:
             w-1000;Question=Default
-            !t-1001;Date=
-            *m-1001;Class=
-            c-1002;Languages=Python,Java,C++
-            *!x-emailAddress;Email Address=
+            ! time - 1001 ; Time = current
+            *multiple choice - 1001 ; Class =
+            checkbox-1002; Languages = Python,Java,C++
+            *! extra-emailAddress; Email Address =
         """
         if not string:
             raise ValueError("Empty entry")
@@ -132,7 +139,13 @@ class EntryInfo:
         string = string.removeprefix("!")
 
         type, split, string = string.partition("-")
-        if type not in TYPES:
+        for name, aliases in TYPES.items():
+            if type == name:
+                break
+            elif type in aliases:
+                type = name
+                break
+        else:
             raise ValueError(f"Type not valid: {type}")
         if not split:
             raise ValueError("Missing type-key split '-'")
@@ -176,12 +189,12 @@ def to_form_url(string):
     raise ValueError(f"String cannot be converted into POST link: {string}")
 
 PROMPTS = {
-    "w": "[Text]",
-    "m": "[Multiple Choice]",
-    "c": "[Checkboxes (comma-separated)]",
-    "d": "[Date MM/DD/YYYY]",
-    "t": "[Time HH:MM]",
-    "x": "[Extra Data]",
+    "words": "[Text]",
+    "choice": "[Multiple Choice]",
+    "checkboxes": "[Checkboxes (comma-separated)]",
+    "date": "[Date MM/DD/YYYY]",
+    "time": "[Time HH:MM]",
+    "extra": "[Extra Data]",
 }
 
 def prompt_entry(entry):
