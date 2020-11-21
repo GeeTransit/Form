@@ -168,7 +168,7 @@ def to_form_url(string):
         return f"https://docs.google.com/forms/d/e/{string}/formResponse"
     if string.endswith("formResponse"):
         return string
-    if not string.endswith("viewform"):
+    if string.endswith("viewform"):
         return string.removesuffix("viewform") + "formResponse"
     raise ValueError(f"String cannot be converted into POST link: {string}")
 
