@@ -125,7 +125,7 @@ PROMPTS = {
         """
         if not string:
             raise ValueError("Empty entry")
-        required = (line[0] == "*")
+        required = (string[0] == "*")
         string = string.removeprefix("*")
 
         if not string:
