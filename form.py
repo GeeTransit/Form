@@ -3,23 +3,23 @@ from datetime import date, time, datetime
 
 TYPES = {"w", "m", "c", "d", "t", "x"}
 
-# Specialized functions (entry, response -> dict[str, str])
-def format_normal(entry, response):
-    return {f"entry.{entry}": response}
+# Specialized functions (key, response -> dict[str, str])
+def format_normal(key, response):
+    return {f"entry.{key}": response}
 
-def format_sentinel(entry, response):
-    return {f"entry.{entry}": response, f"entry.{entry}_sentinel": ""}
+def format_sentinel(key, response):
+    return {f"entry.{key}": response, f"entry.{key}_sentinel": ""}
 
-def format_date(entry, response):
-    keys = [f"entry.{entry}_month", f"entry.{entry}_day", f"entry.{entry}_year"]
+def format_date(key, response):
+    keys = [f"entry.{key}_month", f"entry.{key}_day", f"entry.{key}_year"]
     return dict(zip(keys, response))
 
-def format_time(entry, response):
-    keys = [f"entry.{entry}_hour", f"entry.{entry}_minute"]
+def format_time(key, response):
+    keys = [f"entry.{key}_hour", f"entry.{key}_minute"]
     return dict(zip(keys, response))
 
-def format_extra(entry, response):
-    return {entry: response}
+def format_extra(key, response):
+    return {key: response}
 
 # General formatting function (uses a `type` argument)
 FORMATS = {
@@ -30,42 +30,42 @@ FORMATS = {
     "t": format_time,
     "x": format_extra,
 }
-def format_response(entry, type, response):
+def format_response(key, type, response):
     """
     Return a dictionary to be POSTed to the form.
 
-    Format the entry and response into a dict using the type. The result
+    Format the key and response into a dict using the type. The result
     should be merged to the data dictionary.
 
     Formatter functions shouldn't raise exceptions if supplied the proper
     response from the parser functions. Don't give a string from
     parse_words to format_time.
     """
-    return FORMATS[type](entry, response)
+    return FORMATS[type](key, response)
 
 # Parsing functions (one str argument)
-def parse_normal(response):
-    return response
+def parse_normal(value):
+    return value
 
-def parse_checkboxes(response):
-    responses = list(map(str.strip, response.split(",")))
+def parse_checkboxes(value):
+    responses = list(map(str.strip, value.split(",")))
     if not all(responses):
-        raise ValueError("Empty choice in responses: {response}")
+        raise ValueError("Empty choice in value: {value}")
     return responses
 
-def parse_date(response):
-    if response == "current":
+def parse_date(value):
+    if value == "current":
         return date.today().strftime("%m/%d/%Y").split("/")
-    month, day, year = response.split("/")
+    month, day, year = value.split("/")
     if len(month) != 2 or len(day) != 2 or len(year) != 4:
         raise ValueError("Incorrect date format: MM/DD/YYYY")
     date(int(year), int(month), int(day))  # Test if date is real
     return [month, day, year]
 
-def parse_time(response):
-    if response == "current":
+def parse_time(value):
+    if value == "current":
         return datetime.now().strftime("%H:%M").split(":")
-    hour, minute = response.split(":")
+    hour, minute = value.split(":")
     if len(hour) != 2 or len(minute) != 2:
         raise ValueError("Incorrect time format: HH:MM")
     time(int(hour), int(minute))  # Test if time is real
@@ -79,7 +79,7 @@ PARSERS = {
     "t": parse_time,
     "x": parse_normal,
 }
-def parse_response(response, type):
+def parse_value(value, type):
     """
     Return a string / list[str] as the response.
 
@@ -89,7 +89,7 @@ def parse_response(response, type):
     Parser functions can raise ValueError if the string doesn't match the
     format of the type.
     """
-    return PARSERS[type](response)
+    return PARSERS[type](value)
 
 @dataclass
 class EntryInfo:
@@ -187,18 +187,18 @@ def prompt_entry(entry):
     """
     assert entry.prompt
     while True:
-        line = input(f"{entry.title}: {PROMPTS[entry.type]} ").strip()
-        if not line:
+        value = input(f"{entry.title}: {PROMPTS[entry.type]} ").strip()
+        if not value:
             if entry.required and not entry.value:
                 print(f"Response for entry '{entry.title}' is required")
                 continue
             print(f"Using default value: {entry.value}")
-            line = entry.value
+            value = entry.value
         try:
-            return parse_response(line, entry.type)
+            return parse_value(value, entry.type)
         except Exception as e:
-            if not entry.required and not line:
-                # If line isn't empty, it could be a mistake.
+            if not entry.required and not value:
+                # If provided value isn't empty, it could be a mistake.
                 # Only skip when it is purposefully left empty.
                 return ""
             print(repr(e))
@@ -239,7 +239,7 @@ def main():
         elif entry.required and not entry.value:
             raise ValueError(f"Value for entry '{entry.title}' is required")
         else:
-            response = parse_response(entry.value, entry.type)
+            response = parse_value(entry.value, entry.type)
         data |= format_response(entry.key, entry.type, response)
     print(f"Form data: {data}")
 
