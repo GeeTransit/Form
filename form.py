@@ -43,12 +43,12 @@ def format_message(key, type, message):
     """
     Return a dictionary to be POSTed to the form.
 
-    Format the key and message into a dict using the type. The result
-    should be merged to the data dictionary.
+    Format the key and message into a dict using the type. The result should be
+    merged to the data dictionary.
 
     Formatter functions shouldn't raise exceptions if supplied the proper
-    message from the parser functions. Don't give a string from
-    parse_words to format_time.
+    message from the parser functions. Don't give a string from parse_words to
+    format_time.
     """
     return FORMATS[type](key, message)
 
@@ -68,7 +68,7 @@ def parse_date(value):
     month, day, year = value.split("/")
     if len(month) != 2 or len(day) != 2 or len(year) != 4:
         raise ValueError("Incorrect date format: MM/DD/YYYY")
-    date(int(year), int(month), int(day))  # Test if date is real
+    date(int(year), int(month), int(day))  # Check if date is real
     return [month, day, year]
 
 def parse_time(value):
@@ -77,7 +77,7 @@ def parse_time(value):
     hour, minute = value.split(":")
     if len(hour) != 2 or len(minute) != 2:
         raise ValueError("Incorrect time format: HH:MM")
-    time(int(hour), int(minute))  # Test if time is real
+    time(int(hour), int(minute))  # Check if time is real
     return [hour, minute]
 
 PARSERS = {
@@ -117,9 +117,8 @@ class EntryInfo:
         Parse a string of the format `[*] [!] type - key ; title = value`.
         Return a dataclass (simple object) with the config info.
 
-        A string "*!type-key;title=value" would give
-        `EntryInfo(required=True, prompt=True, type="type", key="key",
-        title="title", value="value")`.
+        A string "*!type-key;title=value" would give `EntryInfo(required=True,
+        prompt=True, type="type", key="key", title="title", value="value")`.
 
         Examples of config lines:
             w-1000;Question=Default
@@ -226,9 +225,8 @@ def parse_entries(entries, *, on_prompt=prompt_entry):
     Return a list of parsed messages.
 
     Parse the entries to create a list of messages. If the entry needs a
-    prompt, on_prompt is called with the entry. It should return a
-    message or raise an error. The result should be passed to
-    `format_entries`.
+    prompt, on_prompt is called with the entry. It should return a message or
+    raise an error. The result should be passed to `format_entries`.
     """
     messages = []
     for entry in entries:
@@ -244,9 +242,8 @@ def format_entries(entries, messages):
     """
     Return a dictionary to be POSTed to the form.
 
-    Format and merge the entries to create a data dictionary containing
-    entries and other data. The result should be POSTed to a URL as the
-    data argument.
+    Format and merge the entries to create a data dictionary containing entries
+    and other data. The result should be POSTed to a URL as the data argument.
     """
     data = {}
     for entry, message in zip(entries, messages):
@@ -262,7 +259,10 @@ def open_config(file):
         file = open(file)
     with file:
         url = to_form_url(file.readline().strip())
-        entries = [EntryInfo.from_string(string) for line in file if (string := line.strip())]
+        entries = [
+            EntryInfo.from_string(string)
+            for line in file if (string := line.strip())
+        ]
     return ConfigInfo(url, entries)
 
 def main():
