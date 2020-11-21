@@ -260,7 +260,6 @@ def open_config(file):
     return ConfigInfo(url, entries)
 
 def main():
-    import os
     import sys
 
     if len(sys.argv) > 2:
@@ -274,12 +273,16 @@ def main():
         name = sys.argv[1]
         print(f"Using config file: {name}")
 
-    if not os.path.exists(name):
-        print("Provided file name doesn't exist: {name}")
+    print("Opening config file...")
+    try:
+        file = open(name)
+    except FileNotFoundError:
+        print(f"Provided file name doesn't exist: {name}")
         sys.exit(2)
 
-    print("Reading config...")
-    config = open_config(name)
+    with open(name) as file:
+        print("Reading config entries...")
+        config = open_config(file)
     print(f"Form URL: {config.url}")
 
     messages = parse_entries(config.entries, on_prompt=prompt_entry)
@@ -292,7 +295,7 @@ def main():
         print("Form cannot be submitted (missing requests library)")
         sys.exit(3)
 
-    if input("Should the form be submitted? (Y/N) ").strip().lower() != "y":
+    if input("Submit the form data? (Y/N) ").strip().lower() != "y":
         print("Form will not be submitted")
         return
 
@@ -303,7 +306,10 @@ def main():
 if __name__ == "__main__":
     try:
         main()
-    except:
+    # Apparently an empty except catches SystemExit. This prevents it.
+    except SystemExit:
+        raise
+    except Exception:
         import traceback
         import sys
         traceback.print_exc()
