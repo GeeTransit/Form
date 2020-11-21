@@ -4,5 +4,5 @@ https://docs.google.com/forms/d/e/1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQ
   choice   - 363426485  ; Multiple Choice (Option 1, Option 2) = Option 1
   checkbox - 1142411773 ; Checkboxes (Option 1, Option 2) = Option 1, Option 2
   choice   - 2116902388 ; Dropdown (Option 1, Option 2) = Option 2
-  date     - 465882654  ; Date = current
-  time     - 1049988990 ; Time = current
+  date     - 465882654  ; Date = today
+  time     - 1049988990 ; Time = now

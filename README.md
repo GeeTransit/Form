@@ -53,14 +53,14 @@ The mark `"!"` means that you will be prompted for the value. This would be for 
 
 The `type` specifies a different data format or value parsing. More info is provided in the table below.
 
-| Type         | Aliases                      | Description                                     |
-|--------------|------------------------------|-------------------------------------------------|
-| `words`      | `w`, `word`, `text`          | Short Answer, Paragraph                         |
-| `choice`     | `m`, `mc`, `multiple choice` | Multiple Choice, Dropdown                       |
-| `checkboxes` | `c`, `checkbox`              | Checkboxes (comma-separated)                    |
-| `date`       | `d`                          | Date (MM/DD/YYYY) or `current` for current date |
-| `time`       | `t`                          | Time (HH:MM) or `current` for current time      |
-| `extra`      | `x`, `extra data`            | Extra Data                                      |
+| Type         | Aliases                      | Description                                   |
+|--------------|------------------------------|-----------------------------------------------|
+| `words`      | `w`, `word`, `text`          | Short Answer, Paragraph                       |
+| `choice`     | `m`, `mc`, `multiple choice` | Multiple Choice, Dropdown                     |
+| `checkboxes` | `c`, `checkbox`              | Checkboxes (comma-separated)                  |
+| `date`       | `d`                          | Date (MM/DD/YYYY) or `today` for current date |
+| `time`       | `t`                          | Time (HH:MM) or `now` for current time        |
+| `extra`      | `x`, `extra data`            | Extra Data                                    |
 
 The `key` identifies the entry. It can be the entry ID in the form `entry.<id>` or just the key in the data (when `type` is `"extra"`).
 

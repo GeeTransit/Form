@@ -64,7 +64,7 @@ def parse_checkboxes(value):
     return messages
 
 def parse_date(value):
-    if value == "current":
+    if value in {"current", "today"}:
         value = date.today().strftime("%m/%d/%Y")
     month, day, year = value.split("/")
     if len(month) != 2 or len(day) != 2 or len(year) != 4:
@@ -73,7 +73,7 @@ def parse_date(value):
     return [month, day, year]
 
 def parse_time(value):
-    if value == "current":
+    if value in {"current", "now"}:
         value = datetime.now().strftime("%H:%M")
     hour, minute = value.split(":")
     if len(hour) != 2 or len(minute) != 2:
@@ -194,8 +194,8 @@ PROMPTS = {
     "words": "[Text]",
     "choice": "[Multiple Choice]",
     "checkboxes": "[Checkboxes (comma-separated)]",
-    "date": "[Date MM/DD/YYYY]",
-    "time": "[Time HH:MM]",
+    "date": "[Date MM/DD/YYYY or 'today']",
+    "time": "[Time HH:MM or 'now']",
     "extra": "[Extra Data]",
 }
 
