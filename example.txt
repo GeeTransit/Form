@@ -1,4 +1,6 @@
 https://docs.google.com/forms/d/e/1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ/viewform
+
+# This is the only prompt (helps identify responses)
 ! words    - 2126808200 ; Short Answer = Default
   words    - 647036320  ; Paragraph = Sent using form.py (example-config.txt)
   choice   - 363426485  ; Multiple Choice (Option 1, Option 2) = Option 1

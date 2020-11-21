@@ -269,7 +269,14 @@ def open_config(file):
         file = open(file)
     with file:
         url = to_form_url(file.readline())
-        entries = [EntryInfo.from_string(line) for line in file if line.strip()]
+        entries = []
+        for line in file:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("#"):
+                continue
+            entries.append(EntryInfo.from_string(line))
     return ConfigInfo(url, entries)
 
 # Returns the passed config file name

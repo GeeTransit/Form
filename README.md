@@ -41,7 +41,9 @@ You can also run the following in case the program window closes immediately.
 
 ## Config
 
-The *config.txt* file starts with the link to the Google Form (just copy from the address bar). The following lines have the following form:
+The *config.txt* file starts with the link to the Google Form (just copy from the address bar).
+
+The following lines contain info for each entry and the format is shown below. Empty lines and lines starting with `"#"` are skipped. Spaces between parts are ignored.
 
 ```
 ["*"] ["!"] type "-" key ";" [title] "=" [value]
