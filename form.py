@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import date, time, datetime
 
+# See README's Config section for more info
 TYPES = {"w", "m", "c", "d", "t", "x"}
 
 # Specialized functions (key, message -> dict[str, str])
@@ -55,7 +56,7 @@ def parse_checkboxes(value):
 
 def parse_date(value):
     if value == "current":
-        return date.today().strftime("%m/%d/%Y").split("/")
+        value = date.today().strftime("%m/%d/%Y")
     month, day, year = value.split("/")
     if len(month) != 2 or len(day) != 2 or len(year) != 4:
         raise ValueError("Incorrect date format: MM/DD/YYYY")
@@ -64,7 +65,7 @@ def parse_date(value):
 
 def parse_time(value):
     if value == "current":
-        return datetime.now().strftime("%H:%M").split(":")
+        value = datetime.now().strftime("%H:%M")
     hour, minute = value.split(":")
     if len(hour) != 2 or len(minute) != 2:
         raise ValueError("Incorrect time format: HH:MM")
@@ -191,7 +192,7 @@ def prompt_entry(entry):
         value = input(f"{entry.title}: {PROMPTS[entry.type]} ").strip()
         if not value:
             if entry.required and not entry.value:
-                print(f"Response for entry '{entry.title}' is required")
+                print(f"Value for entry '{entry.title}' is required")
                 continue
             print(f"Using default value: {entry.value}")
             value = entry.value
@@ -202,7 +203,7 @@ def prompt_entry(entry):
                 # If provided value isn't empty, it could be a mistake.
                 # Only skip when it is purposefully left empty.
                 return ""
-            print(repr(e))
+            print(type(e).__name__, *e.args)
 
 def parse_entries(entries, *, on_prompt=prompt_entry):
     """
