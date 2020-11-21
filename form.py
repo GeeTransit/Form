@@ -231,7 +231,7 @@ def main():
     with open(name) as file:
         url = to_form_url(file.readline().strip())
         print(f"Form URL: {url}")
-        entries = [EntryInfo.from_string(line.strip()) for line in file]
+        entries = [EntryInfo.from_string(string) for line in file if string := line.strip()]
 
     data = {}
     for entry in entries:
