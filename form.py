@@ -204,16 +204,15 @@ def prompt_entry(entry):
                 return ""
             print(repr(e))
 
-def entries(config_file):
-    """
-    Return a dictionary to be POSTed to the form.
-
-    Use the config_file to create a dictionary containing entries and
-    other data. The result should be POSTed to a URL as the data
-    argument.
-    """
-
 def parse_entries(entries, *, on_prompt=prompt_entry):
+    """
+    Return a list of parsed responses.
+
+    Parse the entries to create a list of responses. If the entry needs a
+    prompt, on_prompt is called with the entry. It should return a
+    response or raise an error. The result should be passed to
+    `format_entries`.
+    """
     responses = []
     for entry in entries:
         if entry.prompt:
@@ -225,6 +224,13 @@ def parse_entries(entries, *, on_prompt=prompt_entry):
     return responses
 
 def format_entries(entries, responses):
+    """
+    Return a dictionary to be POSTed to the form.
+
+    Format and merge the entries to create a data dictionary containing
+    entries and other data. The result should be POSTed to a URL as the
+    data argument.
+    """
     data = {}
     for entry, response in zip(entries, responses):
         data |= format_response(entry.key, entry.type, response)
@@ -248,7 +254,7 @@ def main():
     with open(name) as file:
         url = to_form_url(file.readline().strip())
         print(f"Form URL: {url}")
-        entries = [EntryInfo.from_string(string) for line in file if string := line.strip()]
+        entries = [EntryInfo.from_string(string) for line in file if (string := line.strip())]
 
     responses = parse_entries(entries, on_prompt=prompt_entry)
     data = format_entries(entries, responses)
