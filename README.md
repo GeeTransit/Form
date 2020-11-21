@@ -29,7 +29,7 @@ The *config.txt* file starts with the link to the Google Form (just copy from th
 ["*"] ["!"] type "-" key ";" [title] "=" [value]
 ```
 
-The star `"\*"` means that this entry is mandatory. An empty value will be rejected.
+The star `"*"` means that this entry is mandatory. An empty value will be rejected.
 
 The mark `"!"` means that you will be prompted for the value. This would be for sensitive information that you wouldn't want lying around in a file.
 
