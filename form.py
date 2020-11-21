@@ -108,8 +108,9 @@ class EntryInfo:
         Parse a string of the format `[*] [!] type - key ; title = value`.
         Return a dataclass (simple object) with the config info.
 
-        A string `*!type-key;title=value` would give `EntryInfo(required=True,
-        prompt=True, type="type", key="key", title="title", value="value")`.
+        A string "*!type-key;title=value" would give
+        `EntryInfo(required=True, prompt=True, type="type", key="key",
+        title="title", value="value")`.
 
         Examples of config lines:
             w-1000;Question=Default
@@ -216,7 +217,7 @@ def main():
     import sys
 
     if len(sys.argv) > 2:
-        print("Too many arguments. Usage: python form.py [filename]")
+        print("Too many arguments. Usage: python form.py <filename>")
         return
 
     if len(sys.argv) <= 1 or not sys.argv[1]:
