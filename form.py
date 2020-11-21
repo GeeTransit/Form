@@ -128,6 +128,8 @@ class EntryInfo:
             checkbox-1002; Languages = Python,Java,C++
             *! extra-emailAddress; Email Address =
         """
+        string = string.strip()
+
         if not string:
             raise ValueError("Empty entry")
         required = (string[0] == "*")
@@ -165,10 +167,16 @@ class EntryInfo:
         return cls(required, prompt, type, key, title, value)
 
 def test_EntryInfo_from_string():
-    # TODO: Add tests for ValueError
-    default = EntryInfo(True, True, "words", "key", "title", "value")
-    assert EntryInfo.from_string("*!words-key;title=value") == default
-    assert EntryInfo.from_string("* ! words - key ; title = value") == default
+    # TODO: Add tests for ValueError (maybe use pytest)
+    a = EntryInfo(True, True, "words", "key", "title", "value")
+    assert EntryInfo.from_string(" *!words-key;title=value ") == a
+    assert EntryInfo.from_string(" * ! words - key ; title = value ") == a
+
+    b = EntryInfo(False, False, "words", "key", "key", "")
+    assert EntryInfo.from_string("words-key;=") == b
+    assert EntryInfo.from_string("w-key;=") == b
+    assert EntryInfo.from_string("word-key;=") == b
+    assert EntryInfo.from_string("text-key;=") == b
 
 ID_CHARS = set(ascii_letters + digits + "-_")  # [a-zA-Z0-9_-]
 def to_form_url(string):
@@ -180,6 +188,7 @@ def to_form_url(string):
     converted into a POST URL. If the string is the form's ID, it will be
     substituted into a URL.
     """
+    string = string.strip()
     if set(string) <= ID_CHARS:
         if len(string) != 56:
             raise ValueError("Form ID not 56 characters long")
@@ -259,11 +268,8 @@ def open_config(file):
     if isinstance(file, str):
         file = open(file)
     with file:
-        url = to_form_url(file.readline().strip())
-        entries = [
-            EntryInfo.from_string(string)
-            for line in file if (string := line.strip())
-        ]
+        url = to_form_url(file.readline())
+        entries = [EntryInfo.from_string(line) for line in file if line.strip()]
     return ConfigInfo(url, entries)
 
 # Returns the passed config file name
@@ -310,7 +316,7 @@ def main():
     try:
         import requests
     except ImportError:
-        print("Form cannot be submitted (missing requests library)")
+        print("Form will not be submitted (missing requests library)")
         sys.exit(3)
 
     if input("Submit the form data? (Y/N) ").strip().lower() != "y":
@@ -319,7 +325,7 @@ def main():
 
     print("Submitting form...")
     response = requests.post(config.url, data=data)
-    print(f"Response received (200s are good): {response.status_code} {response.reason}")
+    print(f"Response received: {response.status_code} {response.reason}")
 
 if __name__ == "__main__":
     try:
