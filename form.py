@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import date, time
+from datetime import date, time, datetime
 
 # Specialized functions (entry, response -> dict[str, str])
 def format_normal(entry, response):
@@ -52,6 +52,8 @@ def parse_checkboxes(response):
     return responses
 
 def parse_date(response):
+    if response.split("/") == ["current"]:
+        return date.today().strftime("%m/%d/%Y").split("/")
     month, day, year = response.split("/")
     if len(month) != 2 or len(day) != 2 or len(year) != 4:
         raise ValueError("Incorrect date format: MM/DD/YYYY")
@@ -59,6 +61,8 @@ def parse_date(response):
     return [month, day, year]
 
 def parse_time(response):
+    if response.split(":") == ["current"]:
+        return datetime.now().strftime("%H:%M").split(":")
     hour, minute = response.split(":")
     if len(hour) != 2 or len(minute) != 2:
         raise ValueError("Incorrect time format: HH:MM")
