@@ -131,14 +131,14 @@ class EntryInfo:
         if not string:
             raise ValueError("Empty entry")
         required = (string[0] == "*")
-        string = string.removeprefix("*")
+        string = string.removeprefix("*").strip()
 
         if not string:
             raise ValueError("Missing type")
         prompt = (string[0] == "!")
-        string = string.removeprefix("!")
+        string = string.removeprefix("!").strip()
 
-        type, split, string = string.partition("-")
+        type, split, string = map(str.strip, string.partition("-"))
         for name, aliases in TYPES.items():
             if type == name:
                 break
@@ -150,21 +150,17 @@ class EntryInfo:
         if not split:
             raise ValueError("Missing type-key split '-'")
 
-        key, split, string = string.partition(";")
+        key, split, string = map(str.strip, string.partition(";"))
         if not key:
             raise ValueError("Missing key")
         if not split:
             raise ValueError("Missing key-title split ';'")
 
-        title, split, value = string.partition("=")
+        title, split, value = map(str.strip, string.partition("="))
         if not title:
             title = key  # Title defaults to the key if absent.
         if not split:
             raise ValueError("Missing title-value split '='")
-
-        key = key.strip()
-        title = title.strip()
-        value = value.strip()
 
         return cls(required, prompt, type, key, title, value)
 
