@@ -256,7 +256,7 @@ def main():
 
     if len(sys.argv) > 2:
         print("Too many arguments. Usage: python form.py <filename>")
-        return
+        sys.exit(1)
 
     if len(sys.argv) <= 1 or not sys.argv[1]:
         name = "config.txt"
@@ -267,7 +267,7 @@ def main():
 
     if not os.path.exists(name):
         print("Provided file name doesn't exist: {name}")
-        return
+        sys.exit(2)
 
     print("Reading config...")
     config = open_config(name)
@@ -281,7 +281,7 @@ def main():
         import requests
     except ImportError:
         print("Form cannot be submitted (missing requests library)")
-        return
+        sys.exit(3)
 
     if input("Should the form be submitted? (Y/N) ").strip().lower() != "y":
         print("Form will not be submitted")
@@ -296,6 +296,8 @@ if __name__ == "__main__":
         main()
     except:
         import traceback
+        import sys
         traceback.print_exc()
+        sys.exit(4)
     finally:
         input("Press enter to close the program...")
