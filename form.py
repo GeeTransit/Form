@@ -96,15 +96,6 @@ class EntryInfo:
     title: str
     value: str
 
-
-PROMPTS = {
-    "w": "[Text]",
-    "m": "[Multiple Choice]",
-    "c": "[Checkboxes (comma-separated)]",
-    "d": "[Date MM/DD/YYYY]",
-    "t": "[Time HH:MM]",
-    "x": "[Extra Data]",
-}
     @classmethod
     def from_string(cls, string):
         """
@@ -157,19 +148,34 @@ PROMPTS = {
 
         return cls(required, prompt, type, key, title, value)
 
-# Change URLs with viewform -> formResponse
-def fix_url(url):
+ID_CHARS = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
+def to_form_url(string):
     """
     Return a URL that can be POSTed to.
 
-    The url can end with formResponse, or it can end with viewform, which
-    is changed to formResponse.
+    If the string is already the POST URL (ends in formResponse), it is
+    returned. If the string is the GET URL (ends in viewform), it will be
+    converted into a POST URL. If the string is the form's ID, it will be
+    substituted into a URL.
     """
-    if not url.endswith("formResponse"):
-        if not url.endswith("viewform"):
-            raise ValueError("URL cannot be converted into POST link")
-        url = url.removesuffix("viewform") + "formResponse"
-    return url
+    if set(string) <= ID_CHARS:
+        if len(string) != 56:
+            raise ValueError("Form ID not 56 characters long")
+        return f"https://docs.google.com/forms/d/e/{string}/formResponse"
+    if string.endswith("formResponse"):
+        return string
+    if not string.endswith("viewform"):
+        return string.removesuffix("viewform") + "formResponse"
+    raise ValueError(f"String cannot be converted into POST link: {string}")
+
+PROMPTS = {
+    "w": "[Text]",
+    "m": "[Multiple Choice]",
+    "c": "[Checkboxes (comma-separated)]",
+    "d": "[Date MM/DD/YYYY]",
+    "t": "[Time HH:MM]",
+    "x": "[Extra Data]",
+}
 
 def prompt_entry(entry):
     """
@@ -218,7 +224,7 @@ def main():
 
     print("Reading config...")
     with open(name) as file:
-        url = fix_url(file.readline().strip())
+        url = to_form_url(file.readline().strip())
         print(f"Form URL: {url}")
         entries = [EntryInfo.from_string(line.strip()) for line in file]
 
