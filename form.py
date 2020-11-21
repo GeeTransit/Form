@@ -1,3 +1,4 @@
+from collections import namedtuple
 from dataclasses import dataclass
 from datetime import date, time, datetime
 
@@ -237,9 +238,21 @@ def format_entries(entries, messages):
         data |= format_message(entry.key, entry.type, message)
     return data
 
+ConfigInfo = namedtuple("ConfigInfo", "url entries")
+def open_config(file):
+    """
+    Open config file and return the URL and entries.
+    """
+    if isinstance(file, str):
+        file = open(file)
+    with file:
+        url = to_form_url(file.readline().strip())
+        entries = [EntryInfo.from_string(string) for line in file if (string := line.strip())]
+    return ConfigInfo(url, entries)
+
 def main():
+    import os
     import sys
-    import pathlib
 
     if len(sys.argv) > 2:
         print("Too many arguments. Usage: python form.py <filename>")
@@ -252,19 +265,16 @@ def main():
         name = sys.argv[1]
         print(f"Using config file: {name}")
 
-    path = pathlib.Path(name)
-    if not path.exists():
+    if not os.path.exists(name):
         print("Provided file name doesn't exist: {name}")
         return
 
     print("Reading config...")
-    with path.open() as file:
-        url = to_form_url(file.readline().strip())
-        print(f"Form URL: {url}")
-        entries = [EntryInfo.from_string(string) for line in file if (string := line.strip())]
+    config = open_config(name)
+    print(f"Form URL: {config.url}")
 
-    messages = parse_entries(entries, on_prompt=prompt_entry)
-    data = format_entries(entries, messages)
+    messages = parse_entries(config.entries, on_prompt=prompt_entry)
+    data = format_entries(config.entries, messages)
     print(f"Form data: {data}")
 
     try:
