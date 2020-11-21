@@ -238,6 +238,7 @@ def format_entries(entries, responses):
 
 def main():
     import sys
+    import pathlib
 
     if len(sys.argv) > 2:
         print("Too many arguments. Usage: python form.py <filename>")
@@ -250,8 +251,13 @@ def main():
         name = sys.argv[1]
         print(f"Using config file: {name}")
 
+    path = pathlib.Path(name)
+    if not path.exists():
+        print("Provided file name doesn't exist: {name}")
+        return
+
     print("Reading config...")
-    with open(name) as file:
+    with path.open() as file:
         url = to_form_url(file.readline().strip())
         print(f"Form URL: {url}")
         entries = [EntryInfo.from_string(string) for line in file if (string := line.strip())]
