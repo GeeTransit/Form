@@ -125,7 +125,7 @@ class EntryInfo:
             w-1000;Question=Default
             ! time - 1001 ; Time = current
             *multiple choice - 1001 ; Class =
-            checkbox-1002; Languages = Python,Java,C++
+            checkbox-1002; Languages = Python, Java, C++
             *! extra-emailAddress; Email Address =
         """
         string = string.strip()
