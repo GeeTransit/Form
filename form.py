@@ -483,6 +483,29 @@ modes.add_argument("-p", "--process", action="store_true",
 modes.add_argument("-c", "--convert", metavar="URL",
     help="convert the form at the url into a config file at target")
 
+# Get and convert the form HTML
+def get_html_from_convert(convert):
+    try:
+        with open(convert) as file:
+            return file.read()
+    except FileNotFoundError:
+        pass
+
+    # Used to get the form HTML
+    try:
+        import requests
+    except ImportError:
+        print("Form cannot be converted (missing requests library)")
+        sys.exit(3)
+
+    # We're using to_form_url instead of to_normal_form_url. Apparently
+    # the -viewform URL doesn't have the form ready immediately but
+    # -formResponse does. Maybe its something with the page loading or
+    # some JS trickery.
+    url = to_form_url(convert)
+    response = requests.get(url)
+    return response.text
+
 def main(args):
     import sys
 
@@ -492,6 +515,12 @@ def main(args):
         try:
             to_form_url(args.target)
         except ValueError:
+            errored = True
+        else:
+            errored = False
+
+        # If the target ends with .html, it could be a downloaded form
+        if errored and not args.target.endswith(".html"):
             args.process = True
         else:
             args.process = False
@@ -517,7 +546,7 @@ def main(args):
         data = format_entries(config.entries, messages)
         print(f"Form data: {data}")
 
-        # Import requests
+        # Used to send the form response
         try:
             import requests
         except ImportError:
@@ -534,12 +563,7 @@ def main(args):
         print(f"Response received: {response.status_code} {response.reason}")
 
     if args.convert:
-        # Import requests and bs4
-        try:
-            import requests
-        except ImportError:
-            print("Form cannot be converted (missing requests library)")
-            sys.exit(3)
+        # Used to parse the HTML
         try:
             from bs4 import BeautifulSoup
         except ImportError:
@@ -561,19 +585,11 @@ def main(args):
                 return
             print("File will be overwritten")
 
-        # Get and convert the form HTML
-        # We're using to_form_url instead of to_normal_form_url. Apparently the
-        # -viewform URL doesn't have the form ready immediately but
-        # -formResponse does. Maybe its something with the page loading or some
-        # JS trickery.
-        print(f"Checking URL: {args.convert}")
-        url = to_form_url(args.convert)
-
-        print(f"Getting form HTML source: {url}")
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, "html.parser")
+        print(f"Getting form HTML source: {args.convert}")
+        text = get_html_from_convert(args.convert)
 
         print("Converting form...")
+        soup = BeautifulSoup(text, "html.parser")
         info = info_using_soup(soup) | info_using_json(form_json_data(soup))
 
         # Write the info to the config file
