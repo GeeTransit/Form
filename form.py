@@ -418,6 +418,19 @@ def test_info_soup_css():
     for key in info_soup.keys() & info_json.keys():
         assert info_soup[key] == info_json[key]
 
+# Create entries from info
+# `info` needs "types", "titles", "keys", "required", and "options"
+def entries_from_info(info):
+    entries = []
+    for type, title, key, required, options in zip(
+        info["types"], info["titles"], info["keys"],
+        info["required"], info["options"],
+    ):
+        if options:
+            title = f"{title} ({', '.join(options)})"
+        entries.append(EntryInfo(required, True, type, key, title, ""))
+    return entries
+
 # Returns the passed config file name
 def parse_arguments(argv):
     import sys
