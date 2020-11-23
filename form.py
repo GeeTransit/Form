@@ -401,6 +401,7 @@ def info_using_json(json):
 def info_using_soup(soup):
     questions = form_questions(soup.form)
     return {
+        "form_url": to_form_url(soup.form["action"]),
         "types": list(map(question_type, questions)),
         "titles": list(map(question_title, questions)),
         "required": list(map(question_required, questions)),
@@ -436,6 +437,14 @@ def entries_from_info(info):
             title = f"{title} ({', '.join(options)})"
         entries.append(EntryInfo(required, True, type, key, title, ""))
     return entries
+
+# Iterator of config lines from info
+def config_lines_from_info(info):
+    yield info["form_url"]
+    yield f"# Auto-generated using form.py"
+    yield f"# {info['form_title']} - {info['form_description']}"
+    for entry in entries_from_info(info):
+        yield str(entry)
 
 # Returns the passed config file name
 def parse_arguments(argv):
