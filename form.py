@@ -228,7 +228,7 @@ def to_normal_form_url(string):
     Same rules as to_form_url. The result ends with viewform instead of
     formResponse.
     """
-    return to_form_url(string).removesuffix("formResponse") + "viewForm"
+    return to_form_url(string).removesuffix("formResponse") + "viewform"
 
 PROMPTS = {
     "words": "[Text]",
