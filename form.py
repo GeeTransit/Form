@@ -166,6 +166,12 @@ class EntryInfo:
 
         return cls(required, prompt, type, key, title, value)
 
+    def __str__(self):
+        return (
+            f"{'*'*self.required}{'!'*self.prompt}{self.type}"
+            f"-{self.key};{self.title}={self.value}"
+        )
+
 def test_EntryInfo_from_string():
     # TODO: Add tests for ValueError (maybe use pytest)
     a = EntryInfo(True, True, "words", "key", "title", "value")
