@@ -317,7 +317,6 @@ QUESTION_CLASSES = {
     "checkboxes": ["CheckboxRoot"],
     "date": ["DateDateInputs"],
     "time": ["TimeRoot"],
-    "extra": [""],
 }
 def question_type(question):
     for type, classes in QUESTION_CLASSES.items():
