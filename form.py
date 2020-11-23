@@ -279,6 +279,145 @@ def open_config(file):
             entries.append(EntryInfo.from_string(line))
     return ConfigInfo(url, entries)
 
+# Each type has their unique question classes
+QUESTION_CLASSES = {
+    "words": ["TextRoot"],
+    "choice": ["RadioRoot", "SelectRoot"],
+    "checkboxes": ["CheckboxRoot"],
+    "date": ["DateDateInputs"],
+    "time": ["TimeRoot"],
+    "extra": [""],
+}
+def question_type(question):
+    for type, classes in QUESTION_CLASSES.items():
+        for class_ in classes:
+            class_ = f"div.freebirdFormviewerComponentsQuestion{class_}"
+            if question.select_one(class_):
+                return type
+    else:
+        raise ValueError("Unknown type of question")
+
+# Return body > script (FB_PUBLIC_LOAD_DATA_)
+def form_json_data(soup):
+    import json
+    script = soup.select("body>script")[0].contents[0]
+    data = script.partition("=")[2].rstrip().removesuffix(";")
+    return json.loads(data)
+
+# Return all input[type=hidden]
+# Not working currently (must run JS, only in browser)
+def form_raw_keys(form):
+    raw_keys = []
+    for input in form.select("input[type=hidden]"):
+        name = input["name"]
+        if "entry" not in name:
+            continue
+        raw_key = name.removeprefix("entry.").partition("_")[0]
+        if raw_key not in raw_keys:
+            raw_keys.append(raw_key)
+    return raw_keys
+
+# Return the inputs' keys ordered
+# Not working currently (must run JS, only in browser)
+def order_keys(raw_keys, types):
+    # Order: other, time, date, radio/checkbox
+    others, times, dates, choices = [], [], [], []
+    for index, type in enumerate(types):
+        if type == "time":
+            times.append(index)
+        elif type == "date":
+            dates.append(index)
+        elif type == "choice":
+            choices.append(index)
+        else:
+            others.append(index)
+    indices = [*others, *times, *dates, *choices]
+    assert len(indices) == len(types)
+    keys = [None] * len(types)
+    for index, raw_key in zip(indices, raw_keys):
+        keys[index] = raw_key
+    return keys
+
+# Get the question title
+def question_title(question):
+    selection = "div.freebirdFormviewerComponentsQuestionBaseHeader"
+    return list(question.select_one(selection).strings)[0]
+
+# Return whether the question is required
+def question_required(question):
+    selection = "span.freebirdFormviewerComponentsQuestionBaseRequiredAsterisk"
+    return bool(question.select_one(selection))
+
+# Get the options, returning None if not applicable
+def question_options(question, type=None):
+    if type is None:
+        type = question_type(question)
+    if type not in {"choice", "checkboxes"}:
+        return None
+
+    multiple_choice = "div.freebirdFormviewerComponentsQuestionRadioChoice"
+    if question.select_one(multiple_choice):
+        return [choice.text for choice in question.select(multiple_choice)]
+
+    checkbox = "div.freebirdFormviewerComponentsQuestionCheckboxChoice"
+    if question.select_one(checkbox):
+        return [choice.text for choice in question.select(checkbox)]
+
+    dropdown = "div.appsMaterialWizMenuPaperselectOption"
+    if question.select_one(dropdown):
+        # Remove the first choice ("Choose")
+        return [choice.text for choice in question.select(dropdown)][1:]
+
+    raise ValueError("Cannot find question's options")
+
+# Get the question root div (ignores non-question types)
+def form_questions(form):
+    selection = "div.freebirdFormviewerComponentsQuestionBaseRoot"
+    return form.select(selection)
+
+# Get form info using JS script (FB_PUBLIC_LOAD_DATA_)
+def info_using_json(json):
+    questions = json[1][1]
+    def get_options(question):
+        if options := question[4][0][1]:
+            return [option[0] for option in options]
+        return None
+    return {
+        "form_title": json[1][8],
+        "form_description": json[1][0],
+        "titles": [question[1] for question in questions],
+        "keys": [question[4][0][0] for question in questions],
+        "required": [bool(question[4][0][2]) for question in questions],
+        "options": [get_options(question) for question in questions],
+    }
+
+# Get form info using CSS selectors
+def info_using_soup(soup):
+    questions = form_questions(soup.form)
+    return {
+        "types": list(map(question_type, questions)),
+        "titles": list(map(question_title, questions)),
+        "required": list(map(question_required, questions)),
+        "options": list(map(question_options, questions)),
+    }
+
+# Test that the info from soup and from json match
+def test_info_soup_css():
+    import requests
+    from bs4 import BeautifulSoup
+
+    form_id = "1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ"
+    url = to_form_url(form_id)
+
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    info_soup = info_using_soup(soup)
+    info_json = info_using_json(form_json_data(soup))
+
+    for key in info_soup.keys() & info_json.keys():
+        assert info_soup[key] == info_json[key]
+
 # Returns the passed config file name
 def parse_arguments(argv):
     import sys
