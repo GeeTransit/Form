@@ -220,6 +220,15 @@ def to_form_url(string):
 
     raise ValueError(f"String cannot be converted into form link: {string}")
 
+def to_normal_form_url(string):
+    """
+    Return a URL that can be GETted.
+
+    Same rules as to_form_url. The result ends with viewform instead of
+    formResponse.
+    """
+    return to_form_url(string).removesuffix("formResponse") + "viewForm"
+
 PROMPTS = {
     "words": "[Text]",
     "choice": "[Multiple Choice]",
@@ -455,8 +464,12 @@ def entries_from_info(info):
 
 # Iterator of config lines from info
 def config_lines_from_info(info):
-    yield info["form_url"]
+    # First line should be a link that you can paste into a browser
+    yield to_normal_form_url(info["form_url"])
+
+    # Note that the file was auto-generated
     yield f"# Auto-generated using form.py"
+
     yield f"# {info['form_title']} - {info['form_description']}"
     for entry in entries_from_info(info):
         yield str(entry)
