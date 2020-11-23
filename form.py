@@ -563,8 +563,12 @@ def main(args):
             print("File will be overwritten")
 
         # Get and convert the form HTML
+        # We're using to_form_url instead of to_normal_form_url. Apparently the
+        # -viewform URL doesn't have the form ready immediately but
+        # -formResponse does. Maybe its something with the page loading or some
+        # JS trickery.
         print(f"Checking URL: {args.convert}")
-        url = to_normal_form_url(args.convert)
+        url = to_form_url(args.convert)
 
         print(f"Getting form HTML source: {url}")
         response = requests.get(url)
