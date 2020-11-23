@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 from collections import namedtuple
 from configparser import ConfigParser
 from dataclasses import dataclass
@@ -474,64 +475,119 @@ def config_lines_from_info(info):
     for entry in entries_from_info(info):
         yield str(entry)
 
-# Returns the passed config file name
-def parse_arguments(argv):
+parser = ArgumentParser(description="Automate Google Forms")
+parser.add_argument("target", default="config.txt", nargs="?",
+    help="file or url to use")
+modes = parser.add_mutually_exclusive_group()
+modes.add_argument("-p", "--process", action="store_true",
+    help="process the target config file and send the response")
+modes.add_argument("-c", "--convert", metavar="URL",
+    help="convert the form at the url into a config file at target")
+
+def main(args):
     import sys
 
-    if len(argv) > 2:
-        print("Too many arguments. Usage: python form.py <filename>")
-        sys.exit(1)
+    # If neither --process or --convert was specified
+    if not args.process and not args.convert:
+        # Try using the file as a URL
+        try:
+            to_form_url(args.target)
+        except ValueError:
+            args.process = True
+        else:
+            args.process = False
+            args.convert = args.target
+            args.target = "config.txt"
 
-    if len(argv) == 2:
-        print(f"Using config file: {argv[1]}")
-        return argv[1]
+    if args.process:
+        # Open config file
+        print(f"Opening config file: {args.target}")
+        try:
+            file = open(args.target)
+        except FileNotFoundError:
+            print(f"File doesn't exist: {args.target}")
+            sys.exit(2)
 
-    print("Using default name: config.txt")
-    return "config.txt"
+        # Read and process the file
+        with file:
+            print("Reading config entries...")
+            config = open_config(file)
+        print(f"Form URL: {config.url}")
 
-# Returns config info of the passed file name
-def read_config(name):
-    import sys
+        messages = parse_entries(config.entries, on_prompt=prompt_entry)
+        data = format_entries(config.entries, messages)
+        print(f"Form data: {data}")
 
-    print("Opening config file...")
-    try:
-        file = open(name)
-    except FileNotFoundError:
-        print(f"File doesn't exist: {name}")
-        sys.exit(2)
+        # Import requests
+        try:
+            import requests
+        except ImportError:
+            print("Form cannot be submitted (missing requests library)")
+            sys.exit(3)
 
-    with open(name) as file:
-        print("Reading config entries...")
-        return open_config(file)
+        if input("Submit the form data? (Y/N) ").strip().lower() != "y":
+            print("Form will not be submitted")
+            return
 
-def main():
-    import sys
+        # Send POST request to the URL
+        print("Submitting form...")
+        response = requests.post(config.url, data=data)
+        print(f"Response received: {response.status_code} {response.reason}")
 
-    name = parse_arguments(sys.argv)
-    config = read_config(name)
-    print(f"Form URL: {config.url}")
+    if args.convert:
+        # Import requests and bs4
+        try:
+            import requests
+        except ImportError:
+            print("Form cannot be converted (missing requests library)")
+            sys.exit(3)
+        try:
+            from bs4 import BeautifulSoup
+        except ImportError:
+            print("Form cannot be converted (missing bs4 library)")
+            sys.exit(3)
 
-    messages = parse_entries(config.entries, on_prompt=prompt_entry)
-    data = format_entries(config.entries, messages)
-    print(f"Form data: {data}")
+        # Check if config file can be written to
+        try:
+            with open(args.target) as file:
+                if not file.read(1):
+                    raise FileNotFoundError  # File can be written to
+        except FileNotFoundError:
+            print(f"Target file doesn't exist or is empty: {args.target}")
+        else:
+            print(f"Target file exists and is not empty: {args.target}")
+            answer = input(f"Overwrite the config file? (Y/N) ")
+            if answer.strip().lower() != "y":
+                print("File will not be overwritten")
+                return
+            print("File will be overwritten")
 
-    try:
-        import requests
-    except ImportError:
-        print("Form will not be submitted (missing requests library)")
-        sys.exit(3)
+        # Get and convert the form HTML
+        print(f"Checking URL: {args.convert}")
+        url = to_normal_form_url(args.convert)
 
-    if input("Submit the form data? (Y/N) ").strip().lower() != "y":
-        print("Form will not be submitted")
-        return
+        print(f"Getting form HTML source: {url}")
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, "html.parser")
 
-    print("Submitting form...")
-    response = requests.post(config.url, data=data)
-    print(f"Response received: {response.status_code} {response.reason}")
+        print("Converting form...")
+        info = info_using_soup(soup) | info_using_json(form_json_data(soup))
+
+        # Write the info to the config file
+        print("Writing to config file...")
+        with open(args.target, mode="w") as file:
+            for line in config_lines_from_info(info):
+                file.write(line + "\n")
+
+        print(f"Form converted and written to file: {args.target}")
 
 if __name__ == "__main__":
+    # Not wrapped by try-finally as the user is likely running this from the
+    # command line.
+    args = parser.parse_args()
+
     try:
-        main()
+        main(args)
     # Apparently an empty except catches SystemExit. This prevents it.
     except SystemExit:
         raise
