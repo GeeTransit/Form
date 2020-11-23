@@ -1,4 +1,5 @@
 from collections import namedtuple
+from configparser import ConfigParser
 from dataclasses import dataclass
 from datetime import date, time, datetime
 from string import ascii_letters, digits
@@ -192,9 +193,11 @@ def to_form_url(string):
     If the string is already the POST URL (ends in formResponse), it is
     returned. If the string is the GET URL (ends in viewform), it will be
     converted into a POST URL. If the string is the form's ID, it will be
-    substituted into a URL.
+    substituted into a URL. If the string is the file name of an internet
+    shortcut, find the target URL and check using the rules above.
     """
     string = string.strip()
+    # This won't catch the internet shortcut case (file name has a ".")
     if set(string) <= ID_CHARS:
         if len(string) != 56:
             raise ValueError("Form ID not 56 characters long")
@@ -203,7 +206,19 @@ def to_form_url(string):
         return string
     if string.endswith("viewform"):
         return string.removesuffix("viewform") + "formResponse"
-    raise ValueError(f"String cannot be converted into POST link: {string}")
+
+    # If it's an internet shortcut
+    try:
+        parser = ConfigParser()
+        parser.read(string)
+        url = parser["InternetShortcut"]["URL"]
+    except:
+        pass
+    else:
+        # Allow exceptions from this to propagate
+        return to_form_url(url)
+
+    raise ValueError(f"String cannot be converted into form link: {string}")
 
 PROMPTS = {
     "words": "[Text]",
