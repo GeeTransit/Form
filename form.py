@@ -368,6 +368,14 @@ def order_keys(raw_keys, types):
         keys[index] = raw_key
     return keys
 
+# Return whether the form takes an x-emailAddress
+def form_takes_email(form):
+    selection = (
+        "div.freebirdFormviewerComponentsQuestionBaseRoot "
+        "input[type=email]"
+    )
+    return bool(form.select_one(selection))
+
 # Get the question title
 def question_title(question):
     selection = "div.freebirdFormviewerComponentsQuestionBaseHeader"
@@ -424,12 +432,16 @@ def info_using_json(json):
 # Get form info using CSS selectors
 def info_using_soup(soup):
     questions = form_questions(soup.form)
+    takes_email = form_takes_email(soup.form)
+    if takes_email:
+        questions.pop(0)  # Remove first question (email)
     return {
         "form_url": to_form_url(soup.form["action"]),
         "types": list(map(question_type, questions)),
         "titles": list(map(question_title, questions)),
         "required": list(map(question_required, questions)),
         "options": list(map(question_options, questions)),
+        "takes_email": takes_email,
     }
 
 # Test that the info from soup and from json match
@@ -453,6 +465,9 @@ def test_info_soup_css():
 # `info` needs "types", "titles", "keys", "required", and "options"
 def entries_from_info(info):
     entries = []
+    if info["takes_email"]:
+        args = (True, True, "extra", "emailAddress", "Email address", "")
+        entries.append(EntryInfo(*args))
     for type, title, key, required, options in zip(
         info["types"], info["titles"], info["keys"],
         info["required"], info["options"],
@@ -485,11 +500,12 @@ modes.add_argument("-c", "--convert", metavar="URL",
 
 # Get and convert the form HTML
 def get_html_from_convert(convert):
-    try:
-        with open(convert) as file:
-            return file.read()
-    except FileNotFoundError:
-        pass
+    if not convert.endswith(".URL"):
+        try:
+            with open(convert) as file:
+                return file.read()
+        except FileNotFoundError:
+            pass
 
     # Used to get the form HTML
     try:
