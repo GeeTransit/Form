@@ -1,3 +1,6 @@
+import sys
+import traceback
+
 from argparse import ArgumentParser
 from collections import namedtuple
 from configparser import ConfigParser
@@ -478,21 +481,93 @@ def get_html_from_convert(convert):
     response = requests.get(url)
     return response.text
 
-def main(args):
-    import sys
+def get_target_action(target):
+    # Try using the file as a URL
+    try:
+        to_form_url(target)
+    except ValueError:
+        # If the target ends with .html, it could be a downloaded form
+        if target.endswith(".html"):
+            return "process"
+    return "convert"
 
+def command_line_process(target):
+    # Open config file
+    print(f"Opening config file: {target}")
+    try:
+        file = open(target)
+    except FileNotFoundError:
+        print(f"File doesn't exist: {target}")
+        sys.exit(2)
+
+    # Read and process the file
+    with file:
+        print("Reading config entries...")
+        config = open_config(file)
+    print(f"Form URL: {config.url}")
+
+    messages = parse_entries(config.entries, on_prompt=prompt_entry)
+    data = format_entries(config.entries, messages)
+    print(f"Form data: {data}")
+
+    # Used to send the form response
+    try:
+        import requests
+    except ImportError:
+        print("Form cannot be submitted (missing requests library)")
+        sys.exit(3)
+
+    if input("Submit the form data? (Y/N) ").strip().lower() != "y":
+        print("Form will not be submitted")
+        return
+
+    # Send POST request to the URL
+    print("Submitting form...")
+    response = requests.post(config.url, data=data)
+    print(f"Response received: {response.status_code} {response.reason}")
+
+def command_line_convert(origin, target):
+    # Used to parse the HTML
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        print("Form cannot be converted (missing bs4 library)")
+        sys.exit(3)
+
+    # Check if config file can be written to
+    try:
+        with open(target) as file:
+            if not file.read(1):
+                raise FileNotFoundError  # File can be written to
+    except FileNotFoundError:
+        print(f"Target file doesn't exist or is empty: {target}")
+    else:
+        print(f"Target file exists and is not empty: {target}")
+        answer = input(f"Overwrite the config file? (Y/N) ")
+        if answer.strip().lower() != "y":
+            print("File will not be overwritten")
+            return
+        print("File will be overwritten")
+
+    print(f"Getting form HTML source: {origin}")
+    text = get_html_from_convert(origin)
+
+    print("Converting form...")
+    soup = BeautifulSoup(text, "html.parser")
+    info = info_using_soup(soup) | info_using_json(form_json_data(soup))
+
+    # Write the info to the config file
+    print("Writing to config file...")
+    with open(target, mode="w") as file:
+        for line in config_lines_from_info(info):
+            file.write(line + "\n")
+
+    print(f"Form converted and written to file: {target}")
+
+def main(args):
     # If neither --process or --convert was specified
     if not args.process and not args.convert:
-        # Try using the file as a URL
-        try:
-            to_form_url(args.target)
-        except ValueError:
-            errored = True
-        else:
-            errored = False
-
-        # If the target ends with .html, it could be a downloaded form
-        if errored and not args.target.endswith(".html"):
+        if get_target_action(args.target) == "process":
             args.process = True
         else:
             args.process = False
@@ -500,77 +575,9 @@ def main(args):
             args.target = "config.txt"
 
     if args.process:
-        # Open config file
-        print(f"Opening config file: {args.target}")
-        try:
-            file = open(args.target)
-        except FileNotFoundError:
-            print(f"File doesn't exist: {args.target}")
-            sys.exit(2)
-
-        # Read and process the file
-        with file:
-            print("Reading config entries...")
-            config = open_config(file)
-        print(f"Form URL: {config.url}")
-
-        messages = parse_entries(config.entries, on_prompt=prompt_entry)
-        data = format_entries(config.entries, messages)
-        print(f"Form data: {data}")
-
-        # Used to send the form response
-        try:
-            import requests
-        except ImportError:
-            print("Form cannot be submitted (missing requests library)")
-            sys.exit(3)
-
-        if input("Submit the form data? (Y/N) ").strip().lower() != "y":
-            print("Form will not be submitted")
-            return
-
-        # Send POST request to the URL
-        print("Submitting form...")
-        response = requests.post(config.url, data=data)
-        print(f"Response received: {response.status_code} {response.reason}")
-
+        command_line_process(args.target)
     if args.convert:
-        # Used to parse the HTML
-        try:
-            from bs4 import BeautifulSoup
-        except ImportError:
-            print("Form cannot be converted (missing bs4 library)")
-            sys.exit(3)
-
-        # Check if config file can be written to
-        try:
-            with open(args.target) as file:
-                if not file.read(1):
-                    raise FileNotFoundError  # File can be written to
-        except FileNotFoundError:
-            print(f"Target file doesn't exist or is empty: {args.target}")
-        else:
-            print(f"Target file exists and is not empty: {args.target}")
-            answer = input(f"Overwrite the config file? (Y/N) ")
-            if answer.strip().lower() != "y":
-                print("File will not be overwritten")
-                return
-            print("File will be overwritten")
-
-        print(f"Getting form HTML source: {args.convert}")
-        text = get_html_from_convert(args.convert)
-
-        print("Converting form...")
-        soup = BeautifulSoup(text, "html.parser")
-        info = info_using_soup(soup) | info_using_json(form_json_data(soup))
-
-        # Write the info to the config file
-        print("Writing to config file...")
-        with open(args.target, mode="w") as file:
-            for line in config_lines_from_info(info):
-                file.write(line + "\n")
-
-        print(f"Form converted and written to file: {args.target}")
+        command_line_convert(args.convert, args.target)
 
 if __name__ == "__main__":
     # Not wrapped by try-finally as the user is likely running this from the
@@ -583,8 +590,6 @@ if __name__ == "__main__":
     except SystemExit:
         raise
     except Exception:
-        import traceback
-        import sys
         traceback.print_exc()
         sys.exit(4)
     finally:
