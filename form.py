@@ -460,7 +460,7 @@ def get_html_from_convert(convert):
         try:
             with open(convert) as file:
                 return file.read()
-        except FileNotFoundError:
+        except (FileNotFoundError, OSError):
             pass
 
     # Used to get the form HTML
