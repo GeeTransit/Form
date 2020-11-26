@@ -310,6 +310,9 @@ def open_config(file):
             entries.append(EntryInfo.from_string(line))
     return ConfigInfo(url, entries)
 
+# Constant freebird component class prefix
+FREEBIRD = "freebirdFormviewerComponentsQuestion"
+
 # Each type has their unique question classes
 QUESTION_CLASSES = {
     "words": ["TextRoot"],
@@ -321,8 +324,7 @@ QUESTION_CLASSES = {
 def question_type(question):
     for type, classes in QUESTION_CLASSES.items():
         for class_ in classes:
-            class_ = f"div.freebirdFormviewerComponentsQuestion{class_}"
-            if question.select_one(class_):
+            if question.select_one(f"div.{FREEBIRD}{class_}"):
                 return type
     else:
         raise ValueError("Unknown type of question")
@@ -370,21 +372,15 @@ def order_keys(raw_keys, types):
 
 # Return whether the form takes an x-emailAddress
 def form_takes_email(form):
-    selection = (
-        "div.freebirdFormviewerComponentsQuestionBaseRoot "
-        "input[type=email]"
-    )
-    return bool(form.select_one(selection))
+    return bool(form.select_one(f"div.{FREEBIRD}BaseRoot input[type=email]"))
 
 # Get the question title
 def question_title(question):
-    selection = "div.freebirdFormviewerComponentsQuestionBaseHeader"
-    return list(question.select_one(selection).strings)[0]
+    return list(question.select_one(f"div.{FREEBIRD}BaseHeader").strings)[0]
 
 # Return whether the question is required
 def question_required(question):
-    selection = "span.freebirdFormviewerComponentsQuestionBaseRequiredAsterisk"
-    return bool(question.select_one(selection))
+    return bool(question.select_one(f"span.{FREEBIRD}BaseRequiredAsterisk"))
 
 # Get the options, returning None if not applicable
 def question_options(question, type=None):
@@ -393,25 +389,19 @@ def question_options(question, type=None):
     if type not in {"choice", "checkboxes"}:
         return None
 
-    multiple_choice = "div.freebirdFormviewerComponentsQuestionRadioChoice"
-    if question.select_one(multiple_choice):
-        return [choice.text for choice in question.select(multiple_choice)]
-
-    checkbox = "div.freebirdFormviewerComponentsQuestionCheckboxChoice"
-    if question.select_one(checkbox):
-        return [choice.text for choice in question.select(checkbox)]
-
-    dropdown = "div.appsMaterialWizMenuPaperselectOption"
-    if question.select_one(dropdown):
-        # Remove the first choice ("Choose")
-        return [choice.text for choice in question.select(dropdown)][1:]
+    if options := question.select(f"div.{FREEBIRD}RadioChoice"):
+        return [choice.text for choice in options]
+    if options := question.select(f"div.{FREEBIRD}CheckboxChoice"):
+        return [choice.text for choice in options]
+    if options := question.select("div.appsMaterialWizMenuPaperselectOption"):
+        # Remove the first choice (the "Choose" placeholder)
+        return [choice.text for choice in options][1:]
 
     raise ValueError("Cannot find question's options")
 
 # Get the question root div (ignores non-question types)
 def form_questions(form):
-    selection = "div.freebirdFormviewerComponentsQuestionBaseRoot"
-    return form.select(selection)
+    return form.select(f"div.{FREEBIRD}BaseRoot")
 
 # Get form info using JS script (FB_PUBLIC_LOAD_DATA_)
 def info_using_json(json):
