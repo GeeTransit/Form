@@ -33,9 +33,9 @@ Create a virtual environment and download the required libraries.
 
 ## Usage
 
-Drag an internet shortcut onto *run.bat* to create a config file (placed at *config.txt* by default) for the form. (This is equivalent to `run -c <shortcut> config.txt`.)
+Drag an internet shortcut onto *run.bat* to create a config file (placed at *config.txt* by default) for the form. (This is equivalent to `run --convert <shortcut> config.txt`.)
 
-Double click *run.bat* to find and use *config.txt* in the current folder. (`run -p config.txt`) To use a different file, drag it onto *run.bat*. (`run -p <filename>`)
+Double click *run.bat* to find and use *config.txt* in the current folder. (`run --process config.txt`) To use a different file, drag it onto *run.bat*. (`run --process <filename>`)
 
 You can also run the following in case the program window closes immediately. Replace `<command>` with the text in `code format` found above.
 
