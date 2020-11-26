@@ -1,3 +1,7 @@
+import json
+import sys
+import traceback
+
 from argparse import ArgumentParser
 from collections import namedtuple
 from configparser import ConfigParser
@@ -329,7 +333,6 @@ def question_type(question):
 
 # Return body > script (FB_PUBLIC_LOAD_DATA_)
 def form_json_data(soup):
-    import json
     script = soup.select("body>script")[0].contents[0]
     data = script.partition("=")[2].rstrip().removesuffix(";")
     return json.loads(data)
@@ -661,8 +664,6 @@ if __name__ == "__main__":
     except SystemExit:
         raise
     except Exception:
-        import traceback
-        import sys
         traceback.print_exc()
         sys.exit(4)
     finally:
