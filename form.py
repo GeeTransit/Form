@@ -580,94 +580,138 @@ def get_convert_mode(origin):
         return "file"
     raise ValueError(f"Origin's mode couldn't be detected: {origin}")
 
-def main(args):
-    if args.command == "process":
+def process(target="config.txt", *, command_line=False, should_submit=None):
+        if not command_line:
+            print_ = lambda *args, **kwargs: None
+        else:
+            print_ = print
+
         # Open config file
-        print(f"Opening config file: {args.target}")
+        print_(f"Opening config file: {target}")
         try:
-            file = open(args.target)
+            file = open(target)
         except FileNotFoundError:
-            print(f"File doesn't exist: {args.target}")
+            if not command_line:
+                raise
+            print_(f"File doesn't exist: {target}")
             sys.exit(2)
 
         # Read and process the file
         with file:
-            print("Reading config entries...")
+            print_("Reading config entries...")
             config = open_config(file)
-        print(f"Form URL: {config.url}")
+        print_(f"Form URL: {config.url}")
 
         messages = parse_entries(config.entries, on_prompt=prompt_entry)
         data = format_entries(config.entries, messages)
-        print(f"Form data: {data}")
+        print_(f"Form data: {data}")
+
+        if should_submit is not None and not should_submit:  # False
+            return data
 
         # Used to send the form response
         try:
             import requests
         except ImportError:
-            print("Form cannot be submitted (missing requests library)")
+            if not command_line:
+                raise
+            print_("Form cannot be submitted (missing requests library)")
             sys.exit(3)
 
-        if input("Submit the form data? (Y/N) ").strip().lower() != "y":
-            print("Form will not be submitted")
-            return
+        if command_line and should_submit is None:
+            if input("Submit the form data? (Y/N) ").strip().lower() != "y":
+                print_("Form will not be submitted")
+                return data
 
         # Send POST request to the URL
-        print("Submitting form...")
+        print_("Submitting form...")
         response = requests.post(config.url, data=data)
-        print(f"Response received: {response.status_code} {response.reason}")
+        print_(f"Response received: {response.status_code} {response.reason}")
+        return response
 
-    if args.command == "convert":
+def convert(
+    origin, target="config.txt", mode=None,
+    *, command_line=False, should_overwrite=False,
+):
+        if not command_line:
+            print_ = lambda *args, **kwargs: None
+        else:
+            print_ = print
+
         # Used to parse the HTML
         try:
             from bs4 import BeautifulSoup
         except ImportError:
-            print("Form cannot be converted (missing bs4 library)")
+            if not command_line:
+                raise
+            print_("Form cannot be converted (missing bs4 library)")
             sys.exit(3)
 
         # Check if config file can be written to
         try:
-            with open(args.target) as file:
+            with open(target) as file:
                 if not file.read(1):
                     raise FileNotFoundError  # File can be written to
         except FileNotFoundError:
-            print(f"Target file doesn't exist or is empty: {args.target}")
+            print_(f"Target file doesn't exist or is empty: {target}")
+
+        # File exists and not empty
         else:
-            print(f"Target file exists and is not empty: {args.target}")
-            answer = input(f"Overwrite the config file? (Y/N) ")
-            if answer.strip().lower() != "y":
-                print("File will not be overwritten")
-                return
-            print("File will be overwritten")
+            if command_line and should_overwrite is None:
+                print_(f"Target file exists and is not empty: {target}")
+                answer = input(f"Overwrite the config file? (Y/N) ")
+                if answer.strip().lower() != "y":
+                    print_("File will not be overwritten")
+                    return
+                print_("File will be overwritten")
+            elif not should_overwrite:
+                raise ValueError(f"File exists and is not empty: {target}")
 
-        if args.mode is None:
-            args.mode = get_convert_mode(args.origin)
+        if mode is None:
+            mode = get_convert_mode(origin)
 
-        print(f"Getting form HTML source [{args.mode}]: {args.origin}")
-        text = get_html_from_convert(args.origin, args.mode)
+        print_(f"Getting form HTML source [{mode}]: {origin}")
+        text = get_html_from_convert(origin, mode)
 
-        print("Converting form...")
+        print_("Converting form...")
         soup = BeautifulSoup(text, "html.parser")
         info = info_using_soup(soup) | info_using_json(form_json_data(soup))
 
         # Write the info to the config file
-        print("Writing to config file...")
-        with open(args.target, mode="w") as file:
+        print_("Writing to config file...")
+        with open(target, mode="w") as file:
             for line in config_lines_from_info(info):
                 file.write(line + "\n")
 
-        print(f"Form converted and written to file: {args.target}")
+        print_(f"Form converted and written to file: {target}")
+
+def parse_arguments(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+    else:
+        argv = list(argv)  # Ensure argv is a list and is a copy
+    if isinstance(argv, list):
+        if len(argv) == 0:  # Double click
+            argv.extend(["process", "config.txt"])
+        if len(argv) == 1:  # Drag and dropped (second argument is dropped file)
+            if argv[0] not in "-h --help process p convert c".split():
+                argv.insert(0, get_target_command(sys.argv[1]))
+    return better.parse_args(argv)
+
+def main(args=None):
+    if args is None:
+        args = parse_arguments()
+    if args.command in "process p".split():
+        process(args.target, command_line=True)
+    elif args.command in "convert c".split():
+        convert(args.origin, args.target, args.mode, command_line=True)
+    else:
+        raise ValueError(f"Unknown command: {args.command}")
 
 if __name__ == "__main__":
-    argv = sys.argv[1:]
-    if len(argv) == 0:  # Double click
-        argv.extend(["process", "config.txt"])
-    if len(argv) == 1:  # Drag and dropped (second argument is dropped file)
-        if argv[0] not in "-h --help process convert".split():
-            argv.insert(0, get_target_command(sys.argv[1]))
-
     # Not wrapped by try-finally as the user is likely running this from the
     # command line.
-    args = better.parse_args(argv)
+    args = parse_arguments()
 
     try:
         main(args)
