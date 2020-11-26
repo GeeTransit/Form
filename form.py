@@ -700,11 +700,10 @@ def main(args=None):
     if args is None:
         args = parse_arguments()
     if args.command in "process p".split():
-        process(args.target, command_line=True)
-    elif args.command in "convert c".split():
-        convert(args.origin, args.target, args.mode, command_line=True)
-    else:
-        raise ValueError(f"Unknown command: {args.command}")
+        return process(args.target, command_line=True)
+    if args.command in "convert c".split():
+        return convert(args.origin, args.target, args.mode, command_line=True)
+    raise ValueError(f"Unknown command: {args.command}")
 
 if __name__ == "__main__":
     # Not wrapped by try-finally as the user is likely running this from the
