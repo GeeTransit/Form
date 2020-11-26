@@ -495,16 +495,6 @@ def config_lines_from_info(info):
     for entry in entries_from_info(info):
         yield str(entry)
 
-# Original parser
-parser = ArgumentParser(description="Automate Google Forms")
-parser.add_argument("target", default="config.txt", nargs="?",
-    help="file or url to use")
-modes = parser.add_mutually_exclusive_group()
-modes.add_argument("-p", "--process", action="store_true",
-    help="process the target config file and send the response")
-modes.add_argument("-c", "--convert", metavar="URL",
-    help="convert the form at the url into a config file at target")
-
 # Better parser that allows you to specify converter origin type.
 # (Whether it's a file or a shortcut)
 better = ArgumentParser(description="Automate Google Forms (better)")
