@@ -563,7 +563,7 @@ def get_target_command(target):
     with suppress(ValueError):
         to_form_url(target)
         return "convert"
-    if args.target.endswith(".html"):  # Could be a downloaded form
+    if target.endswith(".html"):  # Could be a downloaded form
         return "convert"
     return "process"
 
