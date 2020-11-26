@@ -336,40 +336,6 @@ def form_json_data(soup):
     data = script.partition("=")[2].rstrip().removesuffix(";")
     return json.loads(data)
 
-# Return all input[type=hidden]
-# Not working currently (must run JS, only in browser)
-def form_raw_keys(form):
-    raw_keys = []
-    for input in form.select("input[type=hidden]"):
-        name = input["name"]
-        if "entry" not in name:
-            continue
-        raw_key = name.removeprefix("entry.").partition("_")[0]
-        if raw_key not in raw_keys:
-            raw_keys.append(raw_key)
-    return raw_keys
-
-# Return the inputs' keys ordered
-# Not working currently (must run JS, only in browser)
-def order_keys(raw_keys, types):
-    # Order: other, time, date, radio/checkbox
-    others, times, dates, choices = [], [], [], []
-    for index, type in enumerate(types):
-        if type == "time":
-            times.append(index)
-        elif type == "date":
-            dates.append(index)
-        elif type == "choice":
-            choices.append(index)
-        else:
-            others.append(index)
-    indices = [*others, *times, *dates, *choices]
-    assert len(indices) == len(types)
-    keys = [None] * len(types)
-    for index, raw_key in zip(indices, raw_keys):
-        keys[index] = raw_key
-    return keys
-
 # Return whether the form takes an x-emailAddress
 def form_takes_email(form):
     return bool(form.select_one(f"div.{FREEBIRD}BaseRoot input[type=email]"))
