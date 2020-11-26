@@ -4,7 +4,8 @@ import traceback
 
 from argparse import ArgumentParser
 from collections import namedtuple
-from configparser import ConfigParser
+from configparser import ConfigParser, Error as ConfigError
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date, time, datetime
 from string import ascii_letters, digits
@@ -198,11 +199,9 @@ def to_form_url(string):
     If the string is already the POST URL (ends in formResponse), it is
     returned. If the string is the GET URL (ends in viewform), it will be
     converted into a POST URL. If the string is the form's ID, it will be
-    substituted into a URL. If the string is the file name of an internet
-    shortcut, find the target URL and check using the rules above.
+    substituted into a URL.
     """
     string = string.strip()
-    # This won't catch the internet shortcut case (file name has a ".")
     if set(string) <= ID_CHARS:
         if len(string) != 56:
             raise ValueError("Form ID not 56 characters long")
@@ -211,19 +210,15 @@ def to_form_url(string):
         return string
     if string.endswith("viewform"):
         return string.removesuffix("viewform") + "formResponse"
-
-    # If it's an internet shortcut
-    try:
-        parser = ConfigParser()
-        parser.read(string)
-        url = parser["InternetShortcut"]["URL"]
-    except:
-        pass
-    else:
-        # Allow exceptions from this to propagate
-        return to_form_url(url)
-
     raise ValueError(f"String cannot be converted into form link: {string}")
+
+def url_from_shortcut(shortcut):
+    """
+    Return the URL from an internet shortcut.
+    """
+    parser = ConfigParser()
+    parser.read(shortcut)
+    return parser["InternetShortcut"]["URL"]
 
 def to_normal_form_url(string):
     """
@@ -536,15 +531,16 @@ modes.add_argument("-s", "--shortcut", const="shortcut",
     help="assume origin is a shortcut to a url")
 
 # Get and convert the form HTML
-def get_html_from_convert(convert):
-    if not convert.endswith(".URL"):
-        try:
-            with open(convert) as file:
-                return file.read()
-        except FileNotFoundError:
-            pass
+def get_html_from_convert(origin, mode):
+    if mode == "file":
+        with open(origin) as file:
+            return file.read()
 
-    # Used to get the form HTML
+    if mode == "shortcut":
+        url = url_from_shortcut(origin)
+    else:
+        url = origin
+
     try:
         import requests
     except ImportError:
@@ -555,32 +551,37 @@ def get_html_from_convert(convert):
     # the -viewform URL doesn't have the form ready immediately but
     # -formResponse does. Maybe its something with the page loading or
     # some JS trickery.
-    url = to_form_url(convert)
+    url = to_form_url(url)
     response = requests.get(url)
     return response.text
 
+# Return what command should be run with target
+def get_target_command(target):
+    with suppress(FileNotFoundError, OSError, ConfigError, KeyError):
+        url_from_shortcut(target)
+        return "convert"
+    with suppress(ValueError):
+        to_form_url(target)
+        return "convert"
+    if args.target.endswith(".html"):  # Could be a downloaded form
+        return "convert"
+    return "process"
+
+# Return convert mode that could be used on origin
+def get_convert_mode(origin):
+    with suppress(FileNotFoundError, OSError, ConfigError, KeyError):
+        url_from_shortcut(origin)
+        return "shortcut"
+    with suppress(ValueError):
+        to_form_url(origin)
+        return "url"
+    with suppress(FileNotFoundError, OSError):  # Put after shortcut
+        open(origin).close()
+        return "file"
+    raise ValueError(f"Origin's mode couldn't be detected: {origin}")
+
 def main(args):
-    import sys
-
-    # If neither --process or --convert was specified
-    if not args.process and not args.convert:
-        # Try using the file as a URL
-        try:
-            to_form_url(args.target)
-        except ValueError:
-            errored = True
-        else:
-            errored = False
-
-        # If the target ends with .html, it could be a downloaded form
-        if errored and not args.target.endswith(".html"):
-            args.process = True
-        else:
-            args.process = False
-            args.convert = args.target
-            args.target = "config.txt"
-
-    if args.process:
+    if args.command == "process":
         # Open config file
         print(f"Opening config file: {args.target}")
         try:
@@ -615,7 +616,7 @@ def main(args):
         response = requests.post(config.url, data=data)
         print(f"Response received: {response.status_code} {response.reason}")
 
-    if args.convert:
+    if args.command == "convert":
         # Used to parse the HTML
         try:
             from bs4 import BeautifulSoup
@@ -638,8 +639,11 @@ def main(args):
                 return
             print("File will be overwritten")
 
-        print(f"Getting form HTML source: {args.convert}")
-        text = get_html_from_convert(args.convert)
+        if args.mode is None:
+            args.mode = get_convert_mode(args.origin)
+
+        print(f"Getting form HTML source [{args.mode}]: {args.origin}")
+        text = get_html_from_convert(args.origin, args.mode)
 
         print("Converting form...")
         soup = BeautifulSoup(text, "html.parser")
@@ -654,9 +658,16 @@ def main(args):
         print(f"Form converted and written to file: {args.target}")
 
 if __name__ == "__main__":
+    argv = sys.argv[1:]
+    if len(argv) == 0:  # Double click
+        argv.extend(["process", "config.txt"])
+    if len(argv) == 1:  # Drag and dropped (second argument is dropped file)
+        if argv[0] not in "-h --help process convert".split():
+            argv.insert(0, get_target_command(sys.argv[1]))
+
     # Not wrapped by try-finally as the user is likely running this from the
     # command line.
-    args = parser.parse_args()
+    args = better.parse_args(argv)
 
     try:
         main(args)
