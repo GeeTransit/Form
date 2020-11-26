@@ -522,11 +522,14 @@ converter.add_argument("target", default="config.txt", nargs="?",
     help="target file to write converted config to")
 
 modes = converter.add_mutually_exclusive_group()
-modes.add_argument("-u", "--url", action="store_true",
+modes.add_argument("-u", "--url", const="url",
+    dest="mode", action="store_const",
     help="assume origin is a url")
-modes.add_argument("-f", "--file", action="store_true",
+modes.add_argument("-f", "--file",  const="file",
+    dest="mode", action="store_const",
     help="assume origin is an html file")
-modes.add_argument("-s", "--shortcut", action="store_true",
+modes.add_argument("-s", "--shortcut", const="shortcut",
+    dest="mode", action="store_const",
     help="assume origin is a shortcut to a url")
 
 # Get and convert the form HTML
