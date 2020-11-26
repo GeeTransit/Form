@@ -179,7 +179,7 @@ class EntryInfo:
             f"-{self.key};{self.title}={self.value}"
         )
 
-def test_EntryInfo_from_string():
+def test_entry_from_string():
     # TODO: Add tests for ValueError (maybe use pytest)
     a = EntryInfo(True, True, "words", "key", "title", "value")
     assert EntryInfo.from_string(" *!words-key;title=value ") == a
@@ -190,6 +190,14 @@ def test_EntryInfo_from_string():
     assert EntryInfo.from_string("w-key;=") == b
     assert EntryInfo.from_string("word-key;=") == b
     assert EntryInfo.from_string("text-key;=") == b
+
+def test_entry_str():
+    entry = EntryInfo(True, True, "words", "key", "title", "value")
+    assert EntryInfo.from_string(str(entry)) == entry
+
+    line = "*!words-key;title=value"
+    assert str(entry) == line
+    assert str(EntryInfo.from_string(line)) == line
 
 ID_CHARS = set(ascii_letters + digits + "-_")  # [a-zA-Z0-9_-]
 def to_form_url(string):
