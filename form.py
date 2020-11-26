@@ -489,6 +489,7 @@ def config_lines_from_info(info):
     for entry in entries_from_info(info):
         yield str(entry)
 
+# Original parser
 parser = ArgumentParser(description="Automate Google Forms")
 parser.add_argument("target", default="config.txt", nargs="?",
     help="file or url to use")
@@ -497,6 +498,36 @@ modes.add_argument("-p", "--process", action="store_true",
     help="process the target config file and send the response")
 modes.add_argument("-c", "--convert", metavar="URL",
     help="convert the form at the url into a config file at target")
+
+# Better parser that allows you to specify converter origin type.
+# (Whether it's a file or a shortcut)
+better = ArgumentParser(description="Automate Google Forms (better)")
+subparsers = better.add_subparsers(dest="command", required=True,
+    description="All commands form.py supports")
+
+# form process ...
+processor = subparsers.add_parser("process", aliases=["p"],
+    help="process config file and send form response",
+    description="Process config file and send form response")
+processor.add_argument("target", default="config.txt", nargs="?",
+    help="file to use process config from")
+
+# form convert ...
+converter = subparsers.add_parser("convert", aliases=["c"],
+    help="convert form into config file",
+    description="Convert form into config file")
+converter.add_argument("origin",
+    help="origin file / url to convert from")
+converter.add_argument("target", default="config.txt", nargs="?",
+    help="target file to write converted config to")
+
+modes = converter.add_mutually_exclusive_group()
+modes.add_argument("-u", "--url", action="store_true",
+    help="assume origin is a url")
+modes.add_argument("-f", "--file", action="store_true",
+    help="assume origin is an html file")
+modes.add_argument("-s", "--shortcut", action="store_true",
+    help="assume origin is a shortcut to a url")
 
 # Get and convert the form HTML
 def get_html_from_convert(convert):
