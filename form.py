@@ -452,7 +452,10 @@ def config_lines_from_info(info):
     # Note that the file was auto-generated
     yield f"# Auto-generated using form.py"
 
-    yield f"# {info['form_title']} - {info['form_description']}"
+    yield f"# {info['form_title']}"
+    for line in info["form_description"].splitlines():
+        yield f"#   {line}"
+
     for entry in entries_from_info(info):
         yield str(entry)
 
