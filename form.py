@@ -267,8 +267,8 @@ def prompt_entry(entry):
             return parse_value(value, entry.type)
         except Exception as e:
             if not entry.required and not value:
-                # If provided value isn't empty, it could be a mistake.
-                # Only skip when it is purposefully left empty.
+                # If provided value isn't empty, it could be a mistake. Only
+                # skip when it is purposefully left empty.
                 return ""
             print(type(e).__name__, *e.args)
 
@@ -481,10 +481,9 @@ def get_html_from_convert(convert):
         print("Form cannot be converted (missing requests library)")
         sys.exit(3)
 
-    # We're using to_form_url instead of to_normal_form_url. Apparently
-    # the -viewform URL doesn't have the form ready immediately but
-    # -formResponse does. Maybe its something with the page loading or
-    # some JS trickery.
+    # We're using to_form_url instead of to_normal_form_url. Apparently the
+    # -viewform URL doesn't have the form ready immediately but -formResponse
+    # does. Maybe its something with the page loading or some JS trickery.
     url = to_form_url(convert)
     response = requests.get(url)
     return response.text
@@ -494,12 +493,15 @@ def get_target_action(target):
     try:
         to_form_url(target)
     except ValueError:
-        # If the target ends with .html, it could be a downloaded form
-        if target.endswith(".html"):
-            return "convert"
-        return "process"
+        pass
     else:
         return "convert"
+
+    # If the target ends with .html, it could be a downloaded form
+    if target.endswith(".html"):
+        return "convert"
+    else:
+        return "process"
 
 def command_line_process(target):
     # Open config file
@@ -581,8 +583,7 @@ def main(args):
             args.process = True
         else:
             args.process = False
-            args.convert = args.target
-            args.target = "config.txt"
+            args.convert, args.target = args.target, "config.txt"
 
     if args.process:
         command_line_process(args.target)
