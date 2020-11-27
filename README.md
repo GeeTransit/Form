@@ -4,9 +4,13 @@ Submit a form with just two clicks.
 
 ## Quickstart
 
-Go to the [latest release](https://github.com/GeeTransit/Form/releases) and download *form.exe*. Drag a configuration file onto it to open the program. Double clicking it will make it default to using a *config.txt* file.
+Go to the [latest release](https://github.com/GeeTransit/Form/releases) and download *form.exe*.
 
-If you are downloading the source folder, you can run it by activating the virtual environment and running `python form.py <filename>`.
+Click on your browser's address bar, select everything (Ctrl+A), and drag it into the same folder as *form.exe*. This will create an internet shortcut. Drag it onto *form.exe* to create a *config.txt* file for the form. You can rename it into something more descriptive.
+
+Open the config file to edit the values. The first line will be a link to the form. Lines starting with a hash (`"#"`) are comments. The other lines are the questions. A line with an exclamation mark (`"!"`) will mean that the program will ask you each time for the value to the question. The value in the file will be the default value.
+
+Send a form response by dragging the config file onto *form.exe*. Double clicking it will make it default to a file named *config.txt*. It will ask you for the values to the questions with an exclamation mark (`"!"`). Pressing enter without typing anything will make it use the value in the config file.
 
 ## Setup
 
@@ -29,13 +33,15 @@ Create a virtual environment and download the required libraries.
 
 ## Usage
 
-Double click *run.bat* to find and use *config.txt* in the current folder. To use a different file, drag it onto *run.bat*.
+Drag an internet shortcut onto *run.bat* to create a config file (placed at *config.txt* by default) for the form. (This is equivalent to `run --convert <shortcut> config.txt`.)
 
-You can also run the following in case the program window closes immediately.
+Double click *run.bat* to find and use *config.txt* in the current folder. (`run --process config.txt`) To use a different file, drag it onto *run.bat*. (`run --process <filename>`)
+
+You can also run the following in case the program window closes immediately. Replace `<command>` with the text in `code format` found above.
 
 ```cmd
 > call .venv\scripts\activate
-> python form.py <filename>
+> <command>
 > deactivate
 ```
 
