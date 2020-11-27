@@ -1,3 +1,3 @@
-call .venv\scripts\activate
+@call .venv\scripts\activate
 python form.py %*
 deactivate
