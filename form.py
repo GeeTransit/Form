@@ -488,8 +488,10 @@ def get_target_action(target):
     except ValueError:
         # If the target ends with .html, it could be a downloaded form
         if target.endswith(".html"):
-            return "process"
-    return "convert"
+            return "convert"
+        return "process"
+    else:
+        return "convert"
 
 def command_line_process(target):
     # Open config file
