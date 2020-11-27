@@ -512,7 +512,7 @@ def get_html_from_convert(origin, mode):
 def get_target_command(target):
     try:
         # Raises error if not convertable (get_convert_mode)
-        mode = get_convert_mode(origin)
+        mode = get_convert_mode(target)
     except ValueError:
         return "process"
 
