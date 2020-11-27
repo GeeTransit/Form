@@ -648,24 +648,25 @@ def convert(
 
     print_(f"Form converted and written to file: {target}")
 
-# If there's 0 arguments (double click) or 1 argument (drag and drop), convert
-# it into the appropriate arguments.
-def parse_arguments(argv=None):
-    if argv is None:
-        argv = sys.argv[1:]
-    else:
-        argv = list(argv)  # Ensure argv is a list and is a copy
-    if isinstance(argv, list):
-        if len(argv) == 0:  # Double click
-            argv.extend(["process", "config.txt"])
-        if len(argv) == 1:  # Drag and dropped file is argument
-            if argv[0] not in "--help -h process p convert c".split():
-                argv.insert(0, get_target_command(sys.argv[1]))
-    return better.parse_args(argv)
+# Pass in sys.argv[1:]. Returns whether the program was run using a double
+# click of drag and dropped on.
+def is_simple_run(argv):
+    if len(argv) == 0:  # Double click
+        return True
+    if len(argv) == 1:  # Drag and dropped file is argument
+        if argv[0] not in "--help -h process p convert c".split():
+            return True
+    return False
 
-def main(args=None):
-    if args is None:
-        args = parse_arguments()
+# Pass in sys.argv[1:]. Assume is_simple_run(argv) is True. Returns converted
+# arguments that can be passed into better.parse_args.
+def convert_simple_argv(argv):
+    if not argv:  # Double click
+        return ["process", "config.txt"]
+    else:  # Drag and dropped file is argument
+        return [get_target_command(argv[0]), argv[0]]
+
+def main(args):
     if args.command in "process p".split():
         return process(args.target, command_line=True)
     if args.command in "convert c".split():
@@ -673,17 +674,21 @@ def main(args=None):
     raise ValueError(f"Unknown command: {args.command}")
 
 if __name__ == "__main__":
-    # Not wrapped by try-finally as the user is likely running this from the
-    # command line.
-    args = parse_arguments()
-
+    argv = sys.argv[1:]
+    simple_run = is_simple_run(argv)
     try:
+        if simple_run:
+            argv = convert_simple_argv(argv)
+        args = better.parse_args(argv)
         main(args)
-    # Apparently an empty except catches SystemExit. This prevents it.
-    except SystemExit:
-        raise
     except Exception:
+        if not simple_run:
+            raise
+        # Printed and replaced with sys.exit as the user is likely running this
+        # using a double click or a drag and drop.
         traceback.print_exc()
         sys.exit(4)
     finally:
-        input("Press enter to close the program...")
+        if simple_run:
+            with suppress(BaseException):
+                input("Press enter to close the program...")
