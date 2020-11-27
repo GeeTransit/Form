@@ -501,25 +501,26 @@ def get_html_from_convert(origin, mode):
         print("Form cannot be converted (missing requests library)")
         sys.exit(3)
 
-    # We're using to_form_url instead of to_normal_form_url. Apparently
-    # the -viewform URL doesn't have the form ready immediately but
-    # -formResponse does. Maybe its something with the page loading or
-    # some JS trickery.
+    # We're using to_form_url instead of to_normal_form_url. Apparently the
+    # -viewform URL doesn't have the form ready immediately but -formResponse
+    # does. Maybe its something with the page loading or some JS trickery.
     url = to_form_url(url)
     response = requests.get(url)
     return response.text
 
 # Return what command should be run with target
 def get_target_command(target):
-    with suppress(FileNotFoundError, OSError, ConfigError, KeyError):
-        url_from_shortcut(target)
+    try:
+        # Raises error if not convertable (get_convert_mode)
+        mode = get_convert_mode(origin)
+    except ValueError:
+        return "process"
+
+    if mode == "file" and not target.endswith(".html"):
+        # Assume that unless the file is a config file if it isn't .html
+        return "process"
+    else:
         return "convert"
-    with suppress(ValueError):
-        to_form_url(target)
-        return "convert"
-    if target.endswith(".html"):  # Could be a downloaded form
-        return "convert"
-    return "process"
 
 # Return convert mode that could be used on origin
 def get_convert_mode(origin):
@@ -534,6 +535,9 @@ def get_convert_mode(origin):
         return "file"
     raise ValueError(f"Origin's mode couldn't be detected: {origin}")
 
+# Process the target file and return the data dict. If `should_submit` is True,
+# submit the form to the URL and return the response instead. `command_line`
+# specifies if printing is allowed and if errors are converted into sys.exit.
 def process(target="config.txt", *, command_line=False, should_submit=None):
     if not command_line:
         print_ = lambda *args, **kwargs: None
@@ -583,6 +587,11 @@ def process(target="config.txt", *, command_line=False, should_submit=None):
     print_(f"Response received: {response.status_code} {response.reason}")
     return response
 
+# Convert origin into a config file and save it to target. If `mode` isn't
+# specified, detect it using get_convert_mode. `command_line` specifies if
+# printing is allowed and if errors are converted into sys.exit.
+# `should_overwrite` specifies if the target file can be overwritten should it
+# exist.
 def convert(
     origin, target="config.txt", mode=None,
     *, command_line=False, should_overwrite=False,
@@ -598,7 +607,7 @@ def convert(
     except ImportError:
         if not command_line:
             raise
-        print_("Form cannot be converted (missing bs4 library)")
+        print_("Form cannot be converted (missing beautifulsoup4 library)")
         sys.exit(3)
 
     # Check if config file can be written to
@@ -632,13 +641,15 @@ def convert(
     info = info_using_soup(soup) | info_using_json(form_json_data(soup))
 
     # Write the info to the config file
-    print_("Writing to config file...")
+    print_(f"Writing to config file: {target}")
     with open(target, mode="w") as file:
         for line in config_lines_from_info(info):
             file.write(line + "\n")
 
     print_(f"Form converted and written to file: {target}")
 
+# If there's 0 arguments (double click) or 1 argument (drag and drop), convert
+# it into the appropriate arguments.
 def parse_arguments(argv=None):
     if argv is None:
         argv = sys.argv[1:]
@@ -647,8 +658,8 @@ def parse_arguments(argv=None):
     if isinstance(argv, list):
         if len(argv) == 0:  # Double click
             argv.extend(["process", "config.txt"])
-        if len(argv) == 1:  # Drag and dropped (second argument is dropped file)
-            if argv[0] not in "-h --help process p convert c".split():
+        if len(argv) == 1:  # Drag and dropped file is argument
+            if argv[0] not in "--help -h process p convert c".split():
                 argv.insert(0, get_target_command(sys.argv[1]))
     return better.parse_args(argv)
 
