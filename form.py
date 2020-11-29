@@ -263,8 +263,8 @@ def prompt_entry(entry):
             return parse_value(value, entry.type)
         except Exception as e:
             if not entry.required and not value:
-                # If provided value isn't empty, it could be a mistake.
-                # Only skip when it is purposefully left empty.
+                # If provided value isn't empty, it could be a mistake. Only
+                # skip when it is purposefully left empty.
                 return ""
             print(type(e).__name__, *e.args)
 
@@ -447,7 +447,10 @@ def config_lines_from_info(info):
     # Note that the file was auto-generated
     yield f"# Auto-generated using form.py"
 
-    yield f"# {info['form_title']} - {info['form_description']}"
+    yield f"# {info['form_title']}"
+    for line in info["form_description"].splitlines():
+        yield f"#   {line}"
+
     for entry in entries_from_info(info):
         yield str(entry)
 
@@ -683,7 +686,7 @@ if __name__ == "__main__":
             argv = convert_simple_argv(argv)
         args = better.parse_args(argv)
         main(args)
-    except Exception:
+    except Exception:  # This won't catch Ctrl+C or sys.exit
         if not simple_run:
             raise
         # Printed and replaced with sys.exit as the user is likely running this
