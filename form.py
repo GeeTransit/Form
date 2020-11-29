@@ -516,11 +516,14 @@ def get_target_command(target):
     except ValueError:
         return "process"
 
-    if mode == "file" and not target.endswith(".html"):
-        # Assume that unless the file is a config file if it isn't .html
-        return "process"
-    else:
+    if mode != "file":
         return "convert"
+
+    # If the target ends with .html, it could be a downloaded form
+    if target.endswith(".html"):
+        return "convert"
+    else:
+        return "process"
 
 # Return convert mode that could be used on origin
 def get_convert_mode(origin):
@@ -617,7 +620,6 @@ def convert(
                 raise FileNotFoundError  # File can be written to
     except FileNotFoundError:
         print_(f"Target file doesn't exist or is empty: {target}")
-
     # File exists and not empty
     else:
         if command_line and should_overwrite is None:
