@@ -7,7 +7,7 @@ from configparser import ConfigParser
 from dataclasses import dataclass
 from string import ascii_letters, digits
 
-from process import prompt_entry, parse_entries, format_entries
+from process import prompt_and_parse_entries, format_entries
 
 @dataclass
 class EntryInfo:
@@ -373,7 +373,7 @@ def command_line_process(target):
         config = open_config(file)
     print(f"Form URL: {config.url}")
 
-    messages = parse_entries(config.entries, on_prompt=prompt_entry)
+    messages = prompt_and_parse_entries(config.entries)  # Use default prompts
     data = format_entries(config.entries, messages)
     print(f"Form data: {data}")
 

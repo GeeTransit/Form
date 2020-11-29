@@ -1,7 +1,7 @@
 # process.py
 #
-# This module holds functions specifically for parsing config values and for
-# returning formatted data dictionaries.
+# This module holds functions for processing config files. This includes
+# prompts, value parsers, and data formatters.
 
 from datetime import date, time, datetime
 
@@ -17,27 +17,27 @@ PROMPTS = {
     "extra": "[Extra Data]",
 }
 
-def prompt_entry(entry):
+def prompt_value(entry):
     """
     Prompt for a value to the passed entry.
     """
-    assert entry.prompt
-    while True:
-        value = input(f"{entry.title}: {PROMPTS[entry.type]} ").strip()
-        if not value:
-            if entry.required and not entry.value:
-                print(f"Value for entry '{entry.title}' is required")
-                continue
-            print(f"Using default value: {entry.value}")
-            value = entry.value
-        try:
-            return parse_value(value, entry.type)
-        except Exception as e:
-            if not entry.required and not value:
-                # If provided value isn't empty, it could be a mistake. Only
-                # skip when it is purposefully left empty.
-                return ""
-            print(type(e).__name__, *e.args)
+    value = input(f"{entry.title}: {PROMPTS[entry.type]} ").strip()
+    if value:
+        return value
+
+    if not (entry.required and not entry.value):
+        # Don't print this if it's required and there's no default
+        print(f"Using default value: {entry.value}")
+    return entry.value
+
+def print_error(error, entry, value):
+    """
+    Print the error and its reason.
+    """
+    if entry.required and not value:
+        print(f"Value for entry '{entry.title}' is required")
+    else:
+        print(f"{type(error).__name__}: {', '.join(error.args)}")
 
 
 # - Parsers
@@ -90,22 +90,66 @@ def parse_value(value, type):
     """
     return PARSERS[type](value)
 
-def parse_entries(entries, *, on_prompt=prompt_entry):
+def parse_entry(entry, value=None):
+    """
+    Return the parsed value.
+
+    Parse and return the message. If value is None, entry.value will be used.
+    If there's an error but the entry is optional and the value is empty, the
+    empty value will be returned. If the value isn't empty, the user could have
+    tried to enter a parsable value.
+    """
+    if value is None:
+        value = entry.value
+    if value:
+        return parse_value(value, entry.type)
+
+    if not entry.required:
+        # If provided value isn't empty, it could be a mistake. Only
+        # skip when it is purposefully left empty.
+        return ""
+    raise ValueError(f"Value for entry '{entry.title}' is required")
+
+def prompt_and_parse_entry(
+    entry, *,
+    on_prompt=prompt_value,
+    on_error=print_error,
+):
+    """
+    Prompt and return the parsed value.
+
+    Prompt for an entry value and return the message. `on_prompt(entry)` will
+    be called to get a value. `on_error(exc, entry, value)` will be called if
+    parsing fails. This will loop until `parse_entry(entry, value)` returns
+    (without erroring).
+    """
+    while True:
+        value = on_prompt(entry)  # Not in try-except to prevent infinite loop
+        try:
+            return parse_entry(entry, value)
+        except Exception as exc:
+            on_error(exc, entry, value)
+
+def prompt_and_parse_entries(
+    entries, *,
+    on_prompt=prompt_value,
+    on_error=print_error,
+):
     """
     Return a list of parsed messages.
 
     Parse the entries to create a list of messages. If the entry needs a
-    prompt, on_prompt is called with the entry. It should return a message or
-    raise an error. The result should be passed to `format_entries`.
+    prompt, `prompt_and_parse_entry(entry, **kwargs)` is used. Otherwise,
+    `parse_entry(entry)` is used. The result should be passed to
+    `format_entries`.
     """
     messages = []
     for entry in entries:
         if entry.prompt:
-            messages.append(on_prompt(entry))
-        elif entry.required and not entry.value:
-            raise ValueError(f"Value for entry '{entry.title}' is required")
+            kwargs = dict(on_prompt=on_prompt, on_error=on_error)
+            messages.append(prompt_and_parse_entry(entry, **kwargs))
         else:
-            messages.append(parse_value(entry.value, entry.type))
+            messages.append(parse_entry(entry))
     return messages
 
 
