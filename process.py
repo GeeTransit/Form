@@ -5,7 +5,6 @@
 
 from datetime import date, time, datetime
 
-
 # - Prompts
 # entry -> value
 
@@ -39,7 +38,6 @@ def print_error(error, entry, value):
         print(f"Value for entry '{entry.title}' is required")
     else:
         print(f"{type(error).__name__}: {', '.join(error.args)}")
-
 
 # - Parsers
 # value -> message
@@ -174,7 +172,6 @@ def prompt_and_parse_entries(
         else:
             messages.append(parse_entry(entry))
     return messages
-
 
 # - Formatters
 # key, message -> data
