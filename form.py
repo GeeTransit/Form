@@ -531,13 +531,15 @@ def get_target_command(target):
 
 # Return convert mode that could be used on origin
 def get_convert_mode(origin):
-    with suppress(FileNotFoundError, OSError, ConfigError, KeyError):
-        url_from_shortcut(origin)
-        return "shortcut"
     with suppress(ValueError):
         to_form_url(origin)
         return "url"
-    with suppress(FileNotFoundError, OSError):  # Put after shortcut
+    # Put after checking URL so we can use FileNotFoundError instead of OSError
+    with suppress(FileNotFoundError, ConfigError, KeyError):
+        url_from_shortcut(origin)
+        return "shortcut"
+    # Put after shortcut because "file" includes "shortcut"
+    with suppress(FileNotFoundError):
         open(origin).close()
         return "file"
     raise ValueError(f"Origin's mode couldn't be detected: {origin}")
