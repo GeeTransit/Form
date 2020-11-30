@@ -7,10 +7,7 @@ from contextlib import suppress
 from datetime import date, time, datetime
 
 from config import open_config
-from convert import (
-    info_using_json, info_using_soup,
-    form_json_data, config_lines_from_info,
-)
+from convert import form_info, config_lines_from_info
 from utils import to_form_url, url_from_shortcut
 
 # Specialized functions (key, message -> dict[str, str])
@@ -351,7 +348,7 @@ def convert(
 
     print_("Converting form...")
     soup = BeautifulSoup(text, "html.parser")
-    info = info_using_soup(soup) | info_using_json(form_json_data(soup))
+    info = form_info(soup)
 
     # Write the info to the config file
     print_(f"Writing to config file: {target}")

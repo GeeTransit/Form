@@ -97,6 +97,10 @@ def info_using_soup(soup):
         "takes_email": takes_email,
     }
 
+# Return a union of info_using_json and info_using_soup
+def form_info(soup):
+    return info_using_soup(soup) | info_using_json(form_json_data(soup))
+
 # Test that the info from soup and from json match
 def test_info_soup_css():
     import requests
