@@ -220,14 +220,14 @@ def to_form_url(string):
         return string.removesuffix("viewform") + "formResponse"
     raise ValueError(f"String cannot be converted into form link: {string}")
 
-def url_from_shortcut(shortcut):
+def url_from_shortcut(filename):
     """
     Return the URL from an internet shortcut.
     """
-    parser = ConfigParser()
-    with open(shortcut) as file:  # The file must exist
-        parser.read_file(file)
-    return parser["InternetShortcut"]["URL"]
+    shortcut = ConfigParser()
+    with open(filename) as file:  # The file must exist
+        shortcut.read_file(file)
+    return shortcut["InternetShortcut"]["URL"]
 
 def to_normal_form_url(string):
     """
@@ -457,8 +457,8 @@ def config_lines_from_info(info):
 
 # Better parser that allows you to specify converter origin type.
 # (Whether it's a file or a shortcut)
-better = ArgumentParser(description="Automate Google Forms")
-subparsers = better.add_subparsers(dest="command", required=True,
+parser = ArgumentParser(description="Automate Google Forms")
+subparsers = parser.add_subparsers(dest="command", required=True,
     description="All commands form.py supports")
 
 # form process ...
@@ -669,7 +669,7 @@ def is_simple_run(argv):
     return False
 
 # Pass in sys.argv[1:]. Assume is_simple_run(argv) is True. Returns converted
-# arguments that can be passed into better.parse_args.
+# arguments that can be passed into parser.parse_args.
 def convert_simple_argv(argv):
     if not argv:  # Double click
         return ["process", "config.txt"]
@@ -689,7 +689,7 @@ if __name__ == "__main__":
     try:
         if simple_run:
             argv = convert_simple_argv(argv)
-        args = better.parse_args(argv)
+        args = parser.parse_args(argv)
         main(args)
     except Exception:  # This won't catch Ctrl+C or sys.exit
         if not simple_run:
