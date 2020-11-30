@@ -26,14 +26,6 @@ def to_form_url(string):
         return string.removesuffix("viewform") + "formResponse"
     raise ValueError(f"String cannot be converted into form link: {string}")
 
-def url_from_shortcut(shortcut):
-    """
-    Return the URL from an internet shortcut.
-    """
-    parser = ConfigParser()
-    parser.read(shortcut)
-    return parser["InternetShortcut"]["URL"]
-
 def to_normal_form_url(string):
     """
     Return a URL that can be GETted.
@@ -42,3 +34,11 @@ def to_normal_form_url(string):
     formResponse.
     """
     return to_form_url(string).removesuffix("formResponse") + "viewform"
+
+def url_from_shortcut(shortcut):
+    """
+    Return the URL from an internet shortcut.
+    """
+    parser = ConfigParser()
+    parser.read(shortcut)
+    return parser["InternetShortcut"]["URL"]

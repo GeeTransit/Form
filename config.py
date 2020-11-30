@@ -89,6 +89,28 @@ class EntryInfo:
             f"-{self.key};{self.title}={self.value}"
         )
 
+ConfigInfo = namedtuple("ConfigInfo", "url entries")
+def open_config(file):
+    """
+    Open config file and return the URL and entries.
+    """
+    if isinstance(file, str):
+        file = open(file)
+    with file:
+        url = to_form_url(file.readline())
+        entries = []
+        for line in file:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("#"):
+                continue
+            entries.append(EntryInfo.from_string(line))
+    return ConfigInfo(url, entries)
+
+
+# - Tests
+
 def test_entry_from_string():
     # TODO: Add tests for ValueError (maybe use pytest)
     a = EntryInfo(True, True, "words", "key", "title", "value")
@@ -108,22 +130,3 @@ def test_entry_str():
     line = "*!words-key;title=value"
     assert str(entry) == line
     assert str(EntryInfo.from_string(line)) == line
-
-ConfigInfo = namedtuple("ConfigInfo", "url entries")
-def open_config(file):
-    """
-    Open config file and return the URL and entries.
-    """
-    if isinstance(file, str):
-        file = open(file)
-    with file:
-        url = to_form_url(file.readline())
-        entries = []
-        for line in file:
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith("#"):
-                continue
-            entries.append(EntryInfo.from_string(line))
-    return ConfigInfo(url, entries)

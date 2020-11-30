@@ -11,6 +11,32 @@ from utils import to_form_url, to_normal_form_url
 # Constant freebird component class prefix
 FREEBIRD = "freebirdFormviewerComponentsQuestion"
 
+
+# - CSS Selectors
+
+# Get form info using CSS selectors
+def info_using_soup(soup):
+    questions = form_questions(soup.form)
+    takes_email = form_takes_email(soup.form)
+    if takes_email:
+        questions.pop(0)  # Remove first question (email)
+    return {
+        "form_url": to_form_url(soup.form["action"]),
+        "types": list(map(question_type, questions)),
+        "titles": list(map(question_title, questions)),
+        "required": list(map(question_required, questions)),
+        "options": list(map(question_options, questions)),
+        "takes_email": takes_email,
+    }
+
+# Get the question root div (ignores non-question types)
+def form_questions(form):
+    return form.select(f"div.{FREEBIRD}BaseRoot")
+
+# Return whether the form takes an x-emailAddress
+def form_takes_email(form):
+    return bool(form.select_one(f"div.{FREEBIRD}BaseRoot input[type=email]"))
+
 # Each type has their unique question classes
 QUESTION_CLASSES = {
     "words": ["TextRoot"],
@@ -26,16 +52,6 @@ def question_type(question):
                 return type
     else:
         raise ValueError("Unknown type of question")
-
-# Return body > script (FB_PUBLIC_LOAD_DATA_)
-def form_json_data(soup):
-    script = soup.select("body>script")[0].contents[0]
-    data = script.partition("=")[2].rstrip().removesuffix(";")
-    return json.loads(data)
-
-# Return whether the form takes an x-emailAddress
-def form_takes_email(form):
-    return bool(form.select_one(f"div.{FREEBIRD}BaseRoot input[type=email]"))
 
 # Get the question title
 def question_title(question):
@@ -62,9 +78,14 @@ def question_options(question, type=None):
 
     raise ValueError("Cannot find question's options")
 
-# Get the question root div (ignores non-question types)
-def form_questions(form):
-    return form.select(f"div.{FREEBIRD}BaseRoot")
+
+# - JSON Data
+
+# Return body > script (FB_PUBLIC_LOAD_DATA_)
+def form_json_data(soup):
+    script = soup.select("body>script")[0].contents[0]
+    data = script.partition("=")[2].rstrip().removesuffix(";")
+    return json.loads(data)
 
 # Get form info using JS script (FB_PUBLIC_LOAD_DATA_)
 def info_using_json(json):
@@ -82,41 +103,12 @@ def info_using_json(json):
         "options": [get_options(question) for question in questions],
     }
 
-# Get form info using CSS selectors
-def info_using_soup(soup):
-    questions = form_questions(soup.form)
-    takes_email = form_takes_email(soup.form)
-    if takes_email:
-        questions.pop(0)  # Remove first question (email)
-    return {
-        "form_url": to_form_url(soup.form["action"]),
-        "types": list(map(question_type, questions)),
-        "titles": list(map(question_title, questions)),
-        "required": list(map(question_required, questions)),
-        "options": list(map(question_options, questions)),
-        "takes_email": takes_email,
-    }
+
+# - Form Info
 
 # Return a union of info_using_json and info_using_soup
 def form_info(soup):
     return info_using_soup(soup) | info_using_json(form_json_data(soup))
-
-# Test that the info from soup and from json match
-def test_info_soup_css():
-    import requests
-    from bs4 import BeautifulSoup
-
-    form_id = "1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ"
-    url = to_form_url(form_id)
-
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    info_soup = info_using_soup(soup)
-    info_json = info_using_json(form_json_data(soup))
-
-    for key in info_soup.keys() & info_json.keys():
-        assert info_soup[key] == info_json[key]
 
 # Create entries from info
 # `info` needs "types", "titles", "keys", "required", and "options"
@@ -148,3 +140,23 @@ def config_lines_from_info(info):
 
     for entry in entries_from_info(info):
         yield str(entry)
+
+
+# - Tests
+
+# Test that the info from soup and from json match
+def test_info_soup_css():
+    import requests
+    from bs4 import BeautifulSoup
+
+    form_id = "1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ"
+    url = to_form_url(form_id)
+
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    info_soup = info_using_soup(soup)
+    info_json = info_using_json(form_json_data(soup))
+
+    for key in info_soup.keys() & info_json.keys():
+        assert info_soup[key] == info_json[key]
