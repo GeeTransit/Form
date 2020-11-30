@@ -600,7 +600,7 @@ def process(target="config.txt", *, command_line=False, should_submit=None):
 # exist.
 def convert(
     origin, target="config.txt", mode=None,
-    *, command_line=False, should_overwrite=False,
+    *, command_line=False, should_overwrite=None,
 ):
     if not command_line:
         print_ = lambda *args, **kwargs: None
