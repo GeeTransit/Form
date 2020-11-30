@@ -5,7 +5,6 @@
 
 from datetime import date, time, datetime
 
-
 # - Prompts
 
 PROMPTS = {
@@ -38,7 +37,6 @@ def prompt_entry(entry):
                 # skip when it is purposefully left empty.
                 return ""
             print(type(e).__name__, *e.args)
-
 
 # - Parsers
 
@@ -107,7 +105,6 @@ def parse_entries(entries, *, on_prompt=prompt_entry):
         else:
             messages.append(parse_value(entry.value, entry.type))
     return messages
-
 
 # - Formatters
 
