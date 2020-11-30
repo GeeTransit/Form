@@ -7,6 +7,7 @@ from datetime import date, time, datetime
 
 
 # - Prompts
+# entry -> value
 
 PROMPTS = {
     "words": "[Text]",
@@ -17,7 +18,7 @@ PROMPTS = {
     "extra": "[Extra Data]",
 }
 
-def prompt_value(entry):
+def prompt_entry(entry):
     """
     Prompt for a value to the passed entry.
     """
@@ -41,6 +42,7 @@ def print_error(error, entry, value):
 
 
 # - Parsers
+# value -> message
 
 # Parsing functions (one str argument)
 def parse_normal(value):
@@ -70,6 +72,7 @@ def parse_time(value):
     time(int(hour), int(minute))  # Check if time is real
     return [hour, minute]
 
+# General function (takes a `type` argument)
 PARSERS = {
     "words": parse_normal,
     "choice": parse_normal,
@@ -90,6 +93,7 @@ def parse_value(value, type):
     """
     return PARSERS[type](value)
 
+# Entry functions (uses entries)
 def parse_entry(entry, value=None):
     """
     Return the parsed value.
@@ -110,9 +114,28 @@ def parse_entry(entry, value=None):
         return ""
     raise ValueError(f"Value for entry '{entry.title}' is required")
 
+def parse_entries(entries, values=None):
+    """
+    Return the parsed values.
+
+    Parse and return the messages using parsed_entry. If values is a list, pass
+    it as the second argument (value).
+    """
+    if values is None:
+        return list(map(parse_entry, entries))
+    else:
+        messages = []
+        for entry, value in zip(entries, values):
+            messages.append(parse_entry(entry, value))
+        return messages
+
+# - Prompt & Parse
+# If you want to just parse entries without prompting, use parse_entries. These
+# functions take an on_prompt and on_error for use in the command line.
+
 def prompt_and_parse_entry(
     entry, *,
-    on_prompt=prompt_value,
+    on_prompt=prompt_entry,
     on_error=print_error,
 ):
     """
@@ -132,7 +155,7 @@ def prompt_and_parse_entry(
 
 def prompt_and_parse_entries(
     entries, *,
-    on_prompt=prompt_value,
+    on_prompt=prompt_entry,
     on_error=print_error,
 ):
     """
@@ -154,6 +177,7 @@ def prompt_and_parse_entries(
 
 
 # - Formatters
+# key, message -> data
 
 # Specialized functions (key, message -> dict[str, str])
 def format_normal(key, message):
@@ -195,6 +219,15 @@ def format_message(key, type, message):
     """
     return FORMATS[type](key, message)
 
+# Entry functions (uses entries)
+def format_entry(entry, message):
+    """
+    Return a dictionary to be POSTed to the form.
+
+    The rules for format_message apply here as well.
+    """
+    return format_message(entry.key, entry.type, message)
+
 def format_entries(entries, messages):
     """
     Return a dictionary to be POSTed to the form.
@@ -204,5 +237,5 @@ def format_entries(entries, messages):
     """
     data = {}
     for entry, message in zip(entries, messages):
-        data |= format_message(entry.key, entry.type, message)
+        data |= format_entry(entry, message)
     return data
