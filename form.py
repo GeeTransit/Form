@@ -225,7 +225,8 @@ def url_from_shortcut(shortcut):
     Return the URL from an internet shortcut.
     """
     parser = ConfigParser()
-    parser.read(shortcut)
+    with open(shortcut) as file:  # The file must exist
+        parser.read_file(file)
     return parser["InternetShortcut"]["URL"]
 
 def to_normal_form_url(string):
