@@ -619,6 +619,11 @@ def convert(
         print_("Form cannot be converted (missing beautifulsoup4 library)")
         sys.exit(3)
 
+    # Get the origin mode. This is before checking target because origin comes
+    # before target in the command: `convert origin [target]`
+    if mode is None:
+        mode = get_convert_mode(origin)
+
     # Check if config file can be written to
     try:
         with open(target) as file:
@@ -637,9 +642,6 @@ def convert(
             print_("File will be overwritten")
         elif not should_overwrite:
             raise ValueError(f"File exists and is not empty: {target}")
-
-    if mode is None:
-        mode = get_convert_mode(origin)
 
     print_(f"Getting form HTML source [{mode}]: {origin}")
     text = get_html_from_convert(origin, mode)
