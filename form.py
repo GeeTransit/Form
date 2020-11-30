@@ -457,7 +457,7 @@ def config_lines_from_info(info):
 
 # Better parser that allows you to specify converter origin type.
 # (Whether it's a file or a shortcut)
-better = ArgumentParser(description="Automate Google Forms (better)")
+better = ArgumentParser(description="Automate Google Forms")
 subparsers = better.add_subparsers(dest="command", required=True,
     description="All commands form.py supports")
 
