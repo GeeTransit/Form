@@ -698,5 +698,5 @@ if __name__ == "__main__":
         sys.exit(4)
     finally:
         if simple_run:
-            with suppress(BaseException):
+            with suppress(KeyboardInterrupt):
                 input("Press enter to close the program...")
