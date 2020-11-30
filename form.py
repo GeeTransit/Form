@@ -600,6 +600,8 @@ if __name__ == "__main__":
 
     try:
         main(args)
+    except KeyboardInterrupt:
+        pass  # Ignore Ctrl+C
     except Exception:  # This won't catch Ctrl+C or sys.exit
         traceback.print_exc()
         sys.exit(4)
