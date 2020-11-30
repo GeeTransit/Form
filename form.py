@@ -1,24 +1,17 @@
-import json
 import sys
 import traceback
 
 from argparse import ArgumentParser
-from collections import namedtuple
-from configparser import ConfigParser, Error as ConfigError
+from configparser import Error as ConfigError
 from contextlib import suppress
-from dataclasses import dataclass
 from datetime import date, time, datetime
-from string import ascii_letters, digits
 
-# See README's Config section for more info
-TYPES = {
-    "words": ["w", "word", "text"],
-    "choice": ["m", "mc", "multiple choice"],
-    "checkboxes": ["c", "checkbox"],
-    "date": ["d"],
-    "time": ["t"],
-    "extra": ["x", "xD", "extra data"],
-}
+from config import open_config
+from convert import (
+    info_using_json, info_using_soup,
+    form_json_data, config_lines_from_info,
+)
+from utils import to_form_url, url_from_shortcut
 
 # Specialized functions (key, message -> dict[str, str])
 def format_normal(key, message):
@@ -108,135 +101,6 @@ def parse_value(value, type):
     """
     return PARSERS[type](value)
 
-@dataclass
-class EntryInfo:
-    required: bool
-    prompt: bool
-    type: str
-    key: str
-    title: str
-    value: str
-
-    @classmethod
-    def from_string(cls, string):
-        """
-        Return info on a config file line.
-
-        Parse a string of the format `[*] [!] type - key ; title = value`.
-        Return a dataclass (simple object) with the config info.
-
-        A string "*!type-key;title=value" would give `EntryInfo(required=True,
-        prompt=True, type="type", key="key", title="title", value="value")`.
-
-        Examples of config lines:
-            w-1000;Question=Default
-            ! time - 1001 ; Time = current
-            *multiple choice - 1001 ; Class =
-            checkbox-1002; Languages = Python, Java, C++
-            *! extra-emailAddress; Email Address =
-        """
-        string = string.strip()
-
-        if not string:
-            raise ValueError("Empty entry")
-        required = (string[0] == "*")
-        string = string.removeprefix("*").strip()
-
-        if not string:
-            raise ValueError("Missing type")
-        prompt = (string[0] == "!")
-        string = string.removeprefix("!").strip()
-
-        type, split, string = map(str.strip, string.partition("-"))
-        for name, aliases in TYPES.items():
-            if type == name:
-                break
-            elif type in aliases:
-                type = name
-                break
-        else:
-            raise ValueError(f"Type not valid: {type}")
-        if not split:
-            raise ValueError("Missing type-key split '-'")
-
-        key, split, string = map(str.strip, string.partition(";"))
-        if not key:
-            raise ValueError("Missing key")
-        if not split:
-            raise ValueError("Missing key-title split ';'")
-
-        title, split, value = map(str.strip, string.partition("="))
-        if not title:
-            title = key  # Title defaults to the key if absent.
-        if not split:
-            raise ValueError("Missing title-value split '='")
-
-        return cls(required, prompt, type, key, title, value)
-
-    def __str__(self):
-        return (
-            f"{'*'*self.required}{'!'*self.prompt}{self.type}"
-            f"-{self.key};{self.title}={self.value}"
-        )
-
-def test_entry_from_string():
-    # TODO: Add tests for ValueError (maybe use pytest)
-    a = EntryInfo(True, True, "words", "key", "title", "value")
-    assert EntryInfo.from_string(" *!words-key;title=value ") == a
-    assert EntryInfo.from_string(" * ! words - key ; title = value ") == a
-
-    b = EntryInfo(False, False, "words", "key", "key", "")
-    assert EntryInfo.from_string("words-key;=") == b
-    assert EntryInfo.from_string("w-key;=") == b
-    assert EntryInfo.from_string("word-key;=") == b
-    assert EntryInfo.from_string("text-key;=") == b
-
-def test_entry_str():
-    entry = EntryInfo(True, True, "words", "key", "title", "value")
-    assert EntryInfo.from_string(str(entry)) == entry
-
-    line = "*!words-key;title=value"
-    assert str(entry) == line
-    assert str(EntryInfo.from_string(line)) == line
-
-ID_CHARS = set(ascii_letters + digits + "-_")  # [a-zA-Z0-9_-]
-def to_form_url(string):
-    """
-    Return a URL that can be POSTed to.
-
-    If the string is already the POST URL (ends in formResponse), it is
-    returned. If the string is the GET URL (ends in viewform), it will be
-    converted into a POST URL. If the string is the form's ID, it will be
-    substituted into a URL.
-    """
-    string = string.strip()
-    if set(string) <= ID_CHARS:
-        if len(string) != 56:
-            raise ValueError("Form ID not 56 characters long")
-        return f"https://docs.google.com/forms/d/e/{string}/formResponse"
-    if string.endswith("formResponse"):
-        return string
-    if string.endswith("viewform"):
-        return string.removesuffix("viewform") + "formResponse"
-    raise ValueError(f"String cannot be converted into form link: {string}")
-
-def url_from_shortcut(shortcut):
-    """
-    Return the URL from an internet shortcut.
-    """
-    parser = ConfigParser()
-    parser.read(shortcut)
-    return parser["InternetShortcut"]["URL"]
-
-def to_normal_form_url(string):
-    """
-    Return a URL that can be GETted.
-
-    Same rules as to_form_url. The result ends with viewform instead of
-    formResponse.
-    """
-    return to_form_url(string).removesuffix("formResponse") + "viewform"
-
 PROMPTS = {
     "words": "[Text]",
     "choice": "[Multiple Choice]",
@@ -297,162 +161,6 @@ def format_entries(entries, messages):
     for entry, message in zip(entries, messages):
         data |= format_message(entry.key, entry.type, message)
     return data
-
-ConfigInfo = namedtuple("ConfigInfo", "url entries")
-def open_config(file):
-    """
-    Open config file and return the URL and entries.
-    """
-    if isinstance(file, str):
-        file = open(file)
-    with file:
-        url = to_form_url(file.readline())
-        entries = []
-        for line in file:
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith("#"):
-                continue
-            entries.append(EntryInfo.from_string(line))
-    return ConfigInfo(url, entries)
-
-# Constant freebird component class prefix
-FREEBIRD = "freebirdFormviewerComponentsQuestion"
-
-# Each type has their unique question classes
-QUESTION_CLASSES = {
-    "words": ["TextRoot"],
-    "choice": ["RadioRoot", "SelectRoot"],
-    "checkboxes": ["CheckboxRoot"],
-    "date": ["DateDateInputs"],
-    "time": ["TimeRoot"],
-}
-def question_type(question):
-    for type, classes in QUESTION_CLASSES.items():
-        for class_ in classes:
-            if question.select_one(f"div.{FREEBIRD}{class_}"):
-                return type
-    else:
-        raise ValueError("Unknown type of question")
-
-# Return body > script (FB_PUBLIC_LOAD_DATA_)
-def form_json_data(soup):
-    script = soup.select("body>script")[0].contents[0]
-    data = script.partition("=")[2].rstrip().removesuffix(";")
-    return json.loads(data)
-
-# Return whether the form takes an x-emailAddress
-def form_takes_email(form):
-    return bool(form.select_one(f"div.{FREEBIRD}BaseRoot input[type=email]"))
-
-# Get the question title
-def question_title(question):
-    return list(question.select_one(f"div.{FREEBIRD}BaseHeader").strings)[0]
-
-# Return whether the question is required
-def question_required(question):
-    return bool(question.select_one(f"span.{FREEBIRD}BaseRequiredAsterisk"))
-
-# Get the options, returning None if not applicable
-def question_options(question, type=None):
-    if type is None:
-        type = question_type(question)
-    if type not in {"choice", "checkboxes"}:
-        return None
-
-    if options := question.select(f"div.{FREEBIRD}RadioChoice"):
-        return [choice.text for choice in options]
-    if options := question.select(f"div.{FREEBIRD}CheckboxChoice"):
-        return [choice.text for choice in options]
-    if options := question.select("div.appsMaterialWizMenuPaperselectOption"):
-        # Remove the first choice (the "Choose" placeholder)
-        return [choice.text for choice in options][1:]
-
-    raise ValueError("Cannot find question's options")
-
-# Get the question root div (ignores non-question types)
-def form_questions(form):
-    return form.select(f"div.{FREEBIRD}BaseRoot")
-
-# Get form info using JS script (FB_PUBLIC_LOAD_DATA_)
-def info_using_json(json):
-    questions = json[1][1]
-    def get_options(question):
-        if options := question[4][0][1]:
-            return [option[0] for option in options]
-        return None
-    return {
-        "form_title": json[1][8],
-        "form_description": json[1][0],
-        "titles": [question[1] for question in questions],
-        "keys": [question[4][0][0] for question in questions],
-        "required": [bool(question[4][0][2]) for question in questions],
-        "options": [get_options(question) for question in questions],
-    }
-
-# Get form info using CSS selectors
-def info_using_soup(soup):
-    questions = form_questions(soup.form)
-    takes_email = form_takes_email(soup.form)
-    if takes_email:
-        questions.pop(0)  # Remove first question (email)
-    return {
-        "form_url": to_form_url(soup.form["action"]),
-        "types": list(map(question_type, questions)),
-        "titles": list(map(question_title, questions)),
-        "required": list(map(question_required, questions)),
-        "options": list(map(question_options, questions)),
-        "takes_email": takes_email,
-    }
-
-# Test that the info from soup and from json match
-def test_info_soup_css():
-    import requests
-    from bs4 import BeautifulSoup
-
-    form_id = "1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ"
-    url = to_form_url(form_id)
-
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, "html.parser")
-
-    info_soup = info_using_soup(soup)
-    info_json = info_using_json(form_json_data(soup))
-
-    for key in info_soup.keys() & info_json.keys():
-        assert info_soup[key] == info_json[key]
-
-# Create entries from info
-# `info` needs "types", "titles", "keys", "required", and "options"
-def entries_from_info(info):
-    entries = []
-    if info["takes_email"]:
-        args = (True, True, "extra", "emailAddress", "Email address", "")
-        entries.append(EntryInfo(*args))
-    for type, title, key, required, options in zip(
-        info["types"], info["titles"], info["keys"],
-        info["required"], info["options"],
-    ):
-        if options:
-            title = f"{title} ({', '.join(options)})"
-        entries.append(EntryInfo(required, True, type, key, title, ""))
-    return entries
-
-# Iterator of config lines from info
-def config_lines_from_info(info):
-    # First line should be a link that you can paste into a browser
-    yield to_normal_form_url(info["form_url"])
-
-    # Note that the file was auto-generated
-    yield f"# Auto-generated using form.py"
-
-    yield f"# {info['form_title']}"
-    for line in info["form_description"].splitlines():
-        yield f"#   {line}"
-
-    for entry in entries_from_info(info):
-        yield str(entry)
 
 # Better parser that allows you to specify converter origin type.
 # (Whether it's a file or a shortcut)
@@ -686,6 +394,8 @@ if __name__ == "__main__":
             argv = convert_simple_argv(argv)
         args = better.parse_args(argv)
         main(args)
+    except KeyboardInterrupt:
+        pass  # Ignore Ctrl+C
     except Exception:  # This won't catch Ctrl+C or sys.exit
         if not simple_run:
             raise
