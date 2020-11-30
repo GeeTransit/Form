@@ -561,7 +561,7 @@ def process(target="config.txt", *, command_line=False, should_submit=None):
         if not command_line:
             raise
         print_(f"File doesn't exist: {target}")
-        sys.exit(2)
+        sys.exit(1)
 
     # Read and process the file
     with file:
@@ -691,13 +691,15 @@ if __name__ == "__main__":
             argv = convert_simple_argv(argv)
         args = parser.parse_args(argv)
         main(args)
+    except KeyboardInterrupt:
+        pass  # Ignore Ctrl+C
     except Exception:  # This won't catch Ctrl+C or sys.exit
         if not simple_run:
             raise
         # Printed and replaced with sys.exit as the user is likely running this
         # using a double click or a drag and drop.
         traceback.print_exc()
-        sys.exit(4)
+        sys.exit(1)
     finally:
         if simple_run:
             with suppress(KeyboardInterrupt):
