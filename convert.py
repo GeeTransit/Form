@@ -11,7 +11,6 @@ from utils import to_form_url, to_normal_form_url
 # Constant freebird component class prefix
 FREEBIRD = "freebirdFormviewerComponentsQuestion"
 
-
 # - CSS Selectors
 
 # Get form info using CSS selectors
@@ -78,7 +77,6 @@ def question_options(question, type=None):
 
     raise ValueError("Cannot find question's options")
 
-
 # - JSON Data
 
 # Return body > script (FB_PUBLIC_LOAD_DATA_)
@@ -102,7 +100,6 @@ def info_using_json(json):
         "required": [bool(question[4][0][2]) for question in questions],
         "options": [get_options(question) for question in questions],
     }
-
 
 # - Form Info
 
@@ -140,7 +137,6 @@ def config_lines_from_info(info):
 
     for entry in entries_from_info(info):
         yield str(entry)
-
 
 # - Tests
 

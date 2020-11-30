@@ -108,7 +108,6 @@ def open_config(file):
             entries.append(EntryInfo.from_string(line))
     return ConfigInfo(url, entries)
 
-
 # - Tests
 
 def test_entry_from_string():
