@@ -513,7 +513,7 @@ def command_line_process(target):
         file = open(target)
     except FileNotFoundError:
         print(f"File doesn't exist: {target}")
-        sys.exit(2)
+        sys.exit(1)
 
     # Read and process the file
     with file:
@@ -604,6 +604,6 @@ if __name__ == "__main__":
         pass  # Ignore Ctrl+C
     except Exception:  # This won't catch Ctrl+C or sys.exit
         traceback.print_exc()
-        sys.exit(4)
+        sys.exit(1)
     finally:
         input("Press enter to close the program...")
