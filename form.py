@@ -1,9 +1,11 @@
+import json
 import sys
 import traceback
 
 from argparse import ArgumentParser
 from collections import namedtuple
-from configparser import ConfigParser
+from configparser import ConfigParser, Error as ConfigError
+from contextlib import suppress
 from dataclasses import dataclass
 from string import ascii_letters, digits
 
@@ -118,11 +120,9 @@ def to_form_url(string):
     If the string is already the POST URL (ends in formResponse), it is
     returned. If the string is the GET URL (ends in viewform), it will be
     converted into a POST URL. If the string is the form's ID, it will be
-    substituted into a URL. If the string is the file name of an internet
-    shortcut, find the target URL and check using the rules above.
+    substituted into a URL.
     """
     string = string.strip()
-    # This won't catch the internet shortcut case (file name has a ".")
     if set(string) <= ID_CHARS:
         if len(string) != 56:
             raise ValueError("Form ID not 56 characters long")
@@ -131,19 +131,16 @@ def to_form_url(string):
         return string
     if string.endswith("viewform"):
         return string.removesuffix("viewform") + "formResponse"
-
-    # If it's an internet shortcut
-    try:
-        parser = ConfigParser()
-        parser.read(string)
-        url = parser["InternetShortcut"]["URL"]
-    except:
-        pass
-    else:
-        # Allow exceptions from this to propagate
-        return to_form_url(url)
-
     raise ValueError(f"String cannot be converted into form link: {string}")
+
+def url_from_shortcut(filename):
+    """
+    Return the URL from an internet shortcut.
+    """
+    shortcut = ConfigParser()
+    with open(filename) as file:  # The file must exist
+        shortcut.read_file(file)
+    return shortcut["InternetShortcut"]["URL"]
 
 def to_normal_form_url(string):
     """
@@ -194,7 +191,6 @@ def question_type(question):
 
 # Return body > script (FB_PUBLIC_LOAD_DATA_)
 def form_json_data(soup):
-    import json
     script = soup.select("body>script")[0].contents[0]
     data = script.partition("=")[2].rstrip().removesuffix(";")
     return json.loads(data)
@@ -311,25 +307,50 @@ def config_lines_from_info(info):
     for entry in entries_from_info(info):
         yield str(entry)
 
+# Better parser that allows you to specify converter origin type.
+# (Whether it's a file or a shortcut)
 parser = ArgumentParser(description="Automate Google Forms")
-parser.add_argument("target", default="config.txt", nargs="?",
-    help="file or url to use")
-modes = parser.add_mutually_exclusive_group()
-modes.add_argument("-p", "--process", action="store_true",
-    help="process the target config file and send the response")
-modes.add_argument("-c", "--convert", metavar="URL",
-    help="convert the form at the url into a config file at target")
+subparsers = parser.add_subparsers(dest="command", required=True,
+    description="All commands form.py supports")
+
+# form process ...
+processor = subparsers.add_parser("process", aliases=["p"],
+    help="process config file and send form response",
+    description="Process config file and send form response")
+processor.add_argument("target", default="config.txt", nargs="?",
+    help="file to use process config from")
+
+# form convert ...
+converter = subparsers.add_parser("convert", aliases=["c"],
+    help="convert form into config file",
+    description="Convert form into config file")
+converter.add_argument("origin",
+    help="origin file / url to convert from")
+converter.add_argument("target", default="config.txt", nargs="?",
+    help="target file to write converted config to")
+
+modes = converter.add_mutually_exclusive_group()
+modes.add_argument("-u", "--url", const="url",
+    dest="mode", action="store_const",
+    help="assume origin is a url")
+modes.add_argument("-f", "--file",  const="file",
+    dest="mode", action="store_const",
+    help="assume origin is an html file")
+modes.add_argument("-s", "--shortcut", const="shortcut",
+    dest="mode", action="store_const",
+    help="assume origin is a shortcut to a url")
 
 # Get and convert the form HTML
-def get_html_from_convert(convert):
-    if not convert.endswith(".URL"):
-        try:
-            with open(convert) as file:
-                return file.read()
-        except (FileNotFoundError, OSError):
-            pass
+def get_html_from_convert(origin, mode):
+    if mode == "file":
+        with open(origin) as file:
+            return file.read()
 
-    # Used to get the form HTML
+    if mode == "shortcut":
+        url = url_from_shortcut(origin)
+    else:
+        url = origin
+
     try:
         import requests
     except ImportError:
@@ -339,17 +360,19 @@ def get_html_from_convert(convert):
     # We're using to_form_url instead of to_normal_form_url. Apparently the
     # -viewform URL doesn't have the form ready immediately but -formResponse
     # does. Maybe its something with the page loading or some JS trickery.
-    url = to_form_url(convert)
+    url = to_form_url(url)
     response = requests.get(url)
     return response.text
 
-def get_target_action(target):
-    # Try using the file as a URL
+# Return what command should be run with target
+def get_target_command(target):
     try:
-        to_form_url(target)
+        # Raises error if not convertable (get_convert_mode)
+        mode = get_convert_mode(target)
     except ValueError:
-        pass
-    else:
+        return "process"
+
+    if mode != "file":
         return "convert"
 
     # If the target ends with .html, it could be a downloaded form
@@ -358,48 +381,100 @@ def get_target_action(target):
     else:
         return "process"
 
-def command_line_process(target):
+# Return convert mode that could be used on origin
+def get_convert_mode(origin):
+    with suppress(ValueError):
+        to_form_url(origin)
+        return "url"
+    # Put after checking URL so we can use FileNotFoundError instead of OSError
+    with suppress(FileNotFoundError, ConfigError, KeyError):
+        url_from_shortcut(origin)
+        return "shortcut"
+    # Put after shortcut because "file" includes "shortcut"
+    with suppress(FileNotFoundError):
+        open(origin).close()
+        return "file"
+    raise ValueError(f"Origin's mode couldn't be detected: {origin}")
+
+# Process the target file and return the data dict. If `should_submit` is True,
+# submit the form to the URL and return the response instead. `command_line`
+# specifies if printing is allowed and if errors are converted into sys.exit.
+def process(target="config.txt", *, command_line=False, should_submit=None):
+    if not command_line:
+        print_ = lambda *args, **kwargs: None
+    else:
+        print_ = print
+
     # Open config file
-    print(f"Opening config file: {target}")
+    print_(f"Opening config file: {target}")
     try:
         file = open(target)
     except FileNotFoundError:
-        print(f"File doesn't exist: {target}")
-        sys.exit(2)
+        if not command_line:
+            raise
+        print_(f"File doesn't exist: {target}")
+        sys.exit(1)
 
     # Read and process the file
     with file:
-        print("Reading config entries...")
+        print_("Reading config entries...")
         config = open_config(file)
-    print(f"Form URL: {config.url}")
+    print_(f"Form URL: {config.url}")
 
     messages = parse_entries(config.entries, on_prompt=prompt_entry)
     data = format_entries(config.entries, messages)
-    print(f"Form data: {data}")
+    print_(f"Form data: {data}")
+
+    if should_submit is not None and not should_submit:  # False
+        return data
 
     # Used to send the form response
     try:
         import requests
     except ImportError:
-        print("Form cannot be submitted (missing requests library)")
+        if not command_line:
+            raise
+        print_("Form cannot be submitted (missing requests library)")
         sys.exit(3)
 
-    if input("Submit the form data? (Y/N) ").strip().lower() != "y":
-        print("Form will not be submitted")
-        return
+    if command_line and should_submit is None:
+        if input("Submit the form data? (Y/N) ").strip().lower() != "y":
+            print_("Form will not be submitted")
+            return data
 
     # Send POST request to the URL
-    print("Submitting form...")
+    print_("Submitting form...")
     response = requests.post(config.url, data=data)
-    print(f"Response received: {response.status_code} {response.reason}")
+    print_(f"Response received: {response.status_code} {response.reason}")
+    return response
 
-def command_line_convert(origin, target):
+# Convert origin into a config file and save it to target. If `mode` isn't
+# specified, detect it using get_convert_mode. `command_line` specifies if
+# printing is allowed and if errors are converted into sys.exit.
+# `should_overwrite` specifies if the target file can be overwritten should it
+# exist.
+def convert(
+    origin, target="config.txt", mode=None,
+    *, command_line=False, should_overwrite=None,
+):
+    if not command_line:
+        print_ = lambda *args, **kwargs: None
+    else:
+        print_ = print
+
     # Used to parse the HTML
     try:
         from bs4 import BeautifulSoup
     except ImportError:
-        print("Form cannot be converted (missing bs4 library)")
+        if not command_line:
+            raise
+        print_("Form cannot be converted (missing beautifulsoup4 library)")
         sys.exit(3)
+
+    # Get the origin mode. This is before checking target because origin comes
+    # before target in the command: `convert origin [target]`
+    if mode is None:
+        mode = get_convert_mode(origin)
 
     # Check if config file can be written to
     try:
@@ -407,53 +482,77 @@ def command_line_convert(origin, target):
             if not file.read(1):
                 raise FileNotFoundError  # File can be written to
     except FileNotFoundError:
-        print(f"Target file doesn't exist or is empty: {target}")
+        print_(f"Target file doesn't exist or is empty: {target}")
+    # File exists and not empty
     else:
-        print(f"Target file exists and is not empty: {target}")
-        answer = input(f"Overwrite the config file? (Y/N) ")
-        if answer.strip().lower() != "y":
-            print("File will not be overwritten")
-            return
-        print("File will be overwritten")
+        if command_line and should_overwrite is None:
+            print_(f"Target file exists and is not empty: {target}")
+            answer = input(f"Overwrite the config file? (Y/N) ")
+            if answer.strip().lower() != "y":
+                print_("File will not be overwritten")
+                return
+            print_("File will be overwritten")
+        elif not should_overwrite:
+            raise ValueError(f"File exists and is not empty: {target}")
 
-    print(f"Getting form HTML source: {origin}")
-    text = get_html_from_convert(origin)
+    print_(f"Getting form HTML source [{mode}]: {origin}")
+    text = get_html_from_convert(origin, mode)
 
-    print("Converting form...")
+    print_("Converting form...")
     soup = BeautifulSoup(text, "html.parser")
     info = info_using_soup(soup) | info_using_json(form_json_data(soup))
 
     # Write the info to the config file
-    print("Writing to config file...")
+    print_(f"Writing to config file: {target}")
     with open(target, mode="w") as file:
         for line in config_lines_from_info(info):
             file.write(line + "\n")
 
-    print(f"Form converted and written to file: {target}")
+    print_(f"Form converted and written to file: {target}")
+
+# Pass in sys.argv[1:]. Returns whether the program was run using a double
+# click of drag and dropped on.
+def is_simple_run(argv):
+    if len(argv) == 0:  # Double click
+        return True
+    if len(argv) == 1:  # Drag and dropped file is argument
+        if argv[0] not in "--help -h process p convert c".split():
+            return True
+    return False
+
+# Pass in sys.argv[1:]. Assume is_simple_run(argv) is True. Returns converted
+# arguments that can be passed into parser.parse_args.
+def convert_simple_argv(argv):
+    if not argv:  # Double click
+        return ["process", "config.txt"]
+    else:  # Drag and dropped file is argument
+        return [get_target_command(argv[0]), argv[0]]
 
 def main(args):
-    # If neither --process or --convert was specified
-    if not args.process and not args.convert:
-        if get_target_action(args.target) == "process":
-            args.process = True
-        else:
-            args.process = False
-            args.convert, args.target = args.target, "config.txt"
-
-    if args.process:
-        command_line_process(args.target)
-    if args.convert:
-        command_line_convert(args.convert, args.target)
+    if args.command in "process p".split():
+        return process(args.target, command_line=True)
+    if args.command in "convert c".split():
+        return convert(args.origin, args.target, args.mode, command_line=True)
+    raise ValueError(f"Unknown command: {args.command}")
 
 if __name__ == "__main__":
-    # Not wrapped by try-finally as the user is likely running this from the
-    # command line.
-    args = parser.parse_args()
-
+    argv = sys.argv[1:]
+    simple_run = is_simple_run(argv)
     try:
+        if simple_run:
+            argv = convert_simple_argv(argv)
+        args = parser.parse_args(argv)
         main(args)
+    except KeyboardInterrupt:
+        pass  # Ignore Ctrl+C
     except Exception:  # This won't catch Ctrl+C or sys.exit
+        if not simple_run:
+            raise
+        # Printed and replaced with sys.exit as the user is likely running this
+        # using a double click or a drag and drop.
         traceback.print_exc()
-        sys.exit(4)
+        sys.exit(1)
     finally:
-        input("Press enter to close the program...")
+        if simple_run:
+            with suppress(KeyboardInterrupt):
+                input("Press enter to close the program...")
