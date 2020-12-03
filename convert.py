@@ -79,13 +79,15 @@ def question_options(question, type=None):
 
 # - JSON Data
 
-# Return body > script (FB_PUBLIC_LOAD_DATA_)
+# Return script's JSON
 def form_json_data(soup):
-    script = soup.select("body>script")[0].contents[0]
+    # This returns `JSON` from a string with this format:
+    #   var FB_PUBLIC_LOAD_DATA_ = JSON;
+    script = soup.select("body>script")[0].string
     data = script.partition("=")[2].rstrip().removesuffix(";")
     return json.loads(data)
 
-# Get form info using JS script (FB_PUBLIC_LOAD_DATA_)
+# Get form info using JS script
 def info_using_json(json):
     questions = json[1][1]
     def get_options(question):
