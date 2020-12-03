@@ -6,9 +6,8 @@
 from __future__ import annotations
 
 import dataclasses
-import typing  # Yeah... This is needed even with annotations
 
-from utils import to_form_url
+from utils import to_form_url, to_normal_form_url
 
 @dataclasses.dataclass
 class EntryInfo:
