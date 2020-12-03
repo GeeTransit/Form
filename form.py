@@ -543,8 +543,8 @@ if __name__ == "__main__":
             argv = convert_simple_argv(argv)
         args = parser.parse_args(argv)
         main(args)
-    except KeyboardInterrupt:
-        pass  # Ignore Ctrl+C
+    except KeyboardInterrupt, EOFError:
+        pass  # Ignore Ctrl+C / Ctrl+Z
     except Exception:  # This won't catch Ctrl+C or sys.exit
         if not simple_run:
             raise
@@ -554,5 +554,5 @@ if __name__ == "__main__":
         sys.exit(1)
     finally:
         if simple_run:
-            with suppress(KeyboardInterrupt):
+            with suppress(KeyboardInterrupt, EOFError):
                 input("Press enter to close the program...")
