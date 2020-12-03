@@ -4,165 +4,16 @@ import traceback
 from argparse import ArgumentParser
 from configparser import Error as ConfigError
 from contextlib import suppress
-from datetime import date, time, datetime
 
 from config import open_config
 from convert import form_info, config_lines_from_info
+from process import prompt_entry, parse_entries, format_entries
 from utils import to_form_url, url_from_shortcut
-
-# Specialized functions (key, message -> dict[str, str])
-def format_normal(key, message):
-    return {f"entry.{key}": message}
-
-def format_sentinel(key, message):
-    return {f"entry.{key}": message, f"entry.{key}_sentinel": ""}
-
-def format_date(key, message):
-    keys = [f"entry.{key}_month", f"entry.{key}_day", f"entry.{key}_year"]
-    return dict(zip(keys, message))
-
-def format_time(key, message):
-    keys = [f"entry.{key}_hour", f"entry.{key}_minute"]
-    return dict(zip(keys, message))
-
-def format_extra(key, message):
-    return {key: message}
-
-# General formatting function (uses a `type` argument)
-FORMATS = {
-    "words": format_normal,
-    "choice": format_sentinel,
-    "checkboxes": format_normal,
-    "date": format_date,
-    "time": format_time,
-    "extra": format_extra,
-}
-def format_message(key, type, message):
-    """
-    Return a dictionary to be POSTed to the form.
-
-    Format the key and message into a dict using the type. The result should be
-    merged to the data dictionary.
-
-    Formatter functions shouldn't raise exceptions if supplied the proper
-    message from the parser functions. Don't give a string from parse_words to
-    format_time.
-    """
-    return FORMATS[type](key, message)
-
-# Parsing functions (one str argument)
-def parse_normal(value):
-    return value
-
-def parse_checkboxes(value):
-    messages = list(map(str.strip, value.split(",")))
-    if not all(messages):
-        raise ValueError(f"Empty choice in value: {value}")
-    return messages
-
-def parse_date(value):
-    if value in {"current", "today"}:
-        value = date.today().strftime("%m/%d/%Y")
-    month, day, year = value.split("/")
-    if len(month) != 2 or len(day) != 2 or len(year) != 4:
-        raise ValueError("Incorrect date format: MM/DD/YYYY")
-    date(int(year), int(month), int(day))  # Check if date is real
-    return [month, day, year]
-
-def parse_time(value):
-    if value in {"current", "now"}:
-        value = datetime.now().strftime("%H:%M")
-    hour, minute = value.split(":")
-    if len(hour) != 2 or len(minute) != 2:
-        raise ValueError("Incorrect time format: HH:MM")
-    time(int(hour), int(minute))  # Check if time is real
-    return [hour, minute]
-
-PARSERS = {
-    "words": parse_normal,
-    "choice": parse_normal,
-    "checkboxes": parse_checkboxes,
-    "date": parse_date,
-    "time": parse_time,
-    "extra": parse_normal,
-}
-def parse_value(value, type):
-    """
-    Return a string / list[str] as the message.
-
-    Parse the string using the type. The result should be passed to
-    format_message.
-
-    Parser functions can raise ValueError if the string doesn't match the
-    format of the type.
-    """
-    return PARSERS[type](value)
-
-PROMPTS = {
-    "words": "[Text]",
-    "choice": "[Multiple Choice]",
-    "checkboxes": "[Checkboxes (comma-separated)]",
-    "date": "[Date MM/DD/YYYY or 'today']",
-    "time": "[Time HH:MM or 'now']",
-    "extra": "[Extra Data]",
-}
-
-def prompt_entry(entry):
-    """
-    Prompt for a value to the passed entry.
-    """
-    assert entry.prompt
-    while True:
-        value = input(f"{entry.title}: {PROMPTS[entry.type]} ").strip()
-        if not value:
-            if entry.required and not entry.value:
-                print(f"Value for entry '{entry.title}' is required")
-                continue
-            print(f"Using default value: {entry.value}")
-            value = entry.value
-        try:
-            return parse_value(value, entry.type)
-        except Exception as e:
-            if not entry.required and not value:
-                # If provided value isn't empty, it could be a mistake. Only
-                # skip when it is purposefully left empty.
-                return ""
-            print(type(e).__name__, *e.args)
-
-def parse_entries(entries, *, on_prompt=prompt_entry):
-    """
-    Return a list of parsed messages.
-
-    Parse the entries to create a list of messages. If the entry needs a
-    prompt, on_prompt is called with the entry. It should return a message or
-    raise an error. The result should be passed to `format_entries`.
-    """
-    messages = []
-    for entry in entries:
-        if entry.prompt:
-            messages.append(on_prompt(entry))
-        elif entry.required and not entry.value:
-            raise ValueError(f"Value for entry '{entry.title}' is required")
-        else:
-            messages.append(parse_value(entry.value, entry.type))
-    return messages
-
-def format_entries(entries, messages):
-    """
-    Return a dictionary to be POSTed to the form.
-
-    Format and merge the entries to create a data dictionary containing entries
-    and other data. The result should be POSTed to a URL as the data argument.
-    """
-    data = {}
-    for entry, message in zip(entries, messages):
-        data |= format_message(entry.key, entry.type, message)
-    return data
 
 # Better parser that allows you to specify converter origin type.
 # (Whether it's a file or a shortcut)
-better = ArgumentParser(description="Automate Google Forms (better)")
-subparsers = better.add_subparsers(dest="command", required=True,
+parser = ArgumentParser(description="Automate Google Forms")
+subparsers = parser.add_subparsers(dest="command", required=True,
     description="All commands form.py supports")
 
 # form process ...
@@ -235,13 +86,15 @@ def get_target_command(target):
 
 # Return convert mode that could be used on origin
 def get_convert_mode(origin):
-    with suppress(FileNotFoundError, OSError, ConfigError, KeyError):
-        url_from_shortcut(origin)
-        return "shortcut"
     with suppress(ValueError):
         to_form_url(origin)
         return "url"
-    with suppress(FileNotFoundError, OSError):  # Put after shortcut
+    # Put after checking URL so we can use FileNotFoundError instead of OSError
+    with suppress(FileNotFoundError, ConfigError, KeyError):
+        url_from_shortcut(origin)
+        return "shortcut"
+    # Put after shortcut because "file" includes "shortcut"
+    with suppress(FileNotFoundError):
         open(origin).close()
         return "file"
     raise ValueError(f"Origin's mode couldn't be detected: {origin}")
@@ -263,7 +116,7 @@ def process(target="config.txt", *, command_line=False, should_submit=None):
         if not command_line:
             raise
         print_(f"File doesn't exist: {target}")
-        sys.exit(2)
+        sys.exit(1)
 
     # Read and process the file
     with file:
@@ -321,6 +174,11 @@ def convert(
         print_("Form cannot be converted (missing beautifulsoup4 library)")
         sys.exit(3)
 
+    # Get the origin mode. This is before checking target because origin comes
+    # before target in the command: `convert origin [target]`
+    if mode is None:
+        mode = get_convert_mode(origin)
+
     # Check if config file can be written to
     try:
         with open(target) as file:
@@ -339,9 +197,6 @@ def convert(
             print_("File will be overwritten")
         elif not should_overwrite:
             raise ValueError(f"File exists and is not empty: {target}")
-
-    if mode is None:
-        mode = get_convert_mode(origin)
 
     print_(f"Getting form HTML source [{mode}]: {origin}")
     text = get_html_from_convert(origin, mode)
@@ -369,7 +224,7 @@ def is_simple_run(argv):
     return False
 
 # Pass in sys.argv[1:]. Assume is_simple_run(argv) is True. Returns converted
-# arguments that can be passed into better.parse_args.
+# arguments that can be passed into parser.parse_args.
 def convert_simple_argv(argv):
     if not argv:  # Double click
         return ["process", "config.txt"]
@@ -389,7 +244,7 @@ if __name__ == "__main__":
     try:
         if simple_run:
             argv = convert_simple_argv(argv)
-        args = better.parse_args(argv)
+        args = parser.parse_args(argv)
         main(args)
     except KeyboardInterrupt:
         pass  # Ignore Ctrl+C
@@ -399,8 +254,8 @@ if __name__ == "__main__":
         # Printed and replaced with sys.exit as the user is likely running this
         # using a double click or a drag and drop.
         traceback.print_exc()
-        sys.exit(4)
+        sys.exit(1)
     finally:
         if simple_run:
-            with suppress(BaseException):
+            with suppress(KeyboardInterrupt):
                 input("Press enter to close the program...")
