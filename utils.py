@@ -35,10 +35,11 @@ def to_normal_form_url(string):
     """
     return to_form_url(string).removesuffix("formResponse") + "viewform"
 
-def url_from_shortcut(shortcut):
+def url_from_shortcut(filename):
     """
     Return the URL from an internet shortcut.
     """
-    parser = ConfigParser()
-    parser.read(shortcut)
-    return parser["InternetShortcut"]["URL"]
+    shortcut = ConfigParser()
+    with open(filename) as file:  # The file must exist
+        shortcut.read_file(file)
+    return shortcut["InternetShortcut"]["URL"]
