@@ -107,37 +107,6 @@ def info_using_json(json):
 def form_info(soup):
     return info_using_soup(soup) | info_using_json(form_json_data(soup))
 
-# Create entries from info
-# `info` needs "types", "titles", "keys", "required", and "options"
-def entries_from_info(info):
-    entries = []
-    if info["takes_email"]:
-        args = (True, True, "extra", "emailAddress", "Email address", "")
-        entries.append(EntryInfo(*args))
-    for type, title, key, required, options in zip(
-        info["types"], info["titles"], info["keys"],
-        info["required"], info["options"],
-    ):
-        if options:
-            title = f"{title} ({', '.join(options)})"
-        entries.append(EntryInfo(required, True, type, key, title, ""))
-    return entries
-
-# Iterator of config lines from info
-def config_lines_from_info(info):
-    # First line should be a link that you can paste into a browser
-    yield to_normal_form_url(info["form_url"])
-
-    # Note that the file was auto-generated
-    yield f"# Auto-generated using form.py"
-
-    yield f"# {info['form_title']}"
-    for line in info["form_description"].splitlines():
-        yield f"#   {line}"
-
-    for entry in entries_from_info(info):
-        yield str(entry)
-
 # - Tests
 
 # Test that the info from soup and from json match

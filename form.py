@@ -5,8 +5,8 @@ from argparse import ArgumentParser
 from configparser import Error as ConfigError
 from contextlib import suppress
 
-from config import open_config
-from convert import form_info, config_lines_from_info
+from config import ConfigInfo
+from convert import form_info
 from process import prompt_entry, parse_entries, format_entries
 from utils import to_form_url, url_from_shortcut
 
@@ -121,9 +121,17 @@ def process(target="config.txt", *, command_line=False, should_submit=None):
     # Read and process the file
     with file:
         print_("Reading config entries...")
-        config = open_config(file)
-    print_(f"Form URL: {config.url}")
+        config = ConfigInfo.from_file(file)
 
+    # Print out config info
+    print_(f"URL: {config.url}")
+    if config.title:
+        print_(config.title)
+    if config.description:
+        for line in config.description.splitlines():
+            print_(f"  {line}")
+
+    # Parse and format entries
     messages = parse_entries(config.entries, on_prompt=prompt_entry)
     data = format_entries(config.entries, messages)
     print_(f"Form data: {data}")
@@ -204,11 +212,12 @@ def convert(
     print_("Converting form...")
     soup = BeautifulSoup(text, "html.parser")
     info = form_info(soup)
+    config = ConfigInfo.from_info(info)
 
     # Write the info to the config file
     print_(f"Writing to config file: {target}")
     with open(target, mode="w") as file:
-        for line in config_lines_from_info(info):
+        for line in config.to_config_lines():
             file.write(line + "\n")
 
     print_(f"Form converted and written to file: {target}")
