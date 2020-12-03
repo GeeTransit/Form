@@ -131,7 +131,7 @@ def config_lines_from_info(info):
     yield to_normal_form_url(info["form_url"])
 
     # Note that the file was auto-generated
-    yield f"# Auto-generated using form.py"
+    yield "# Auto-generated using form.py"
 
     yield f"# {info['form_title']}"
     for line in info["form_description"].splitlines():
