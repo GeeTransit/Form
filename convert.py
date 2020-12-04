@@ -90,6 +90,9 @@ def form_json_data(soup):
 
 # Get form info using JS script
 def info_using_json(json):
+    # Note that most of these were found by matching up strings with the form.
+    # They can probably change and so should only be used when necessary (such
+    # as for the entry keys).
     questions = json[1][1]
     def get_options(question):
         if options := question[4][0][1]:
@@ -114,9 +117,13 @@ def form_info(soup):
 # `info` needs "types", "titles", "keys", "required", and "options"
 def entries_from_info(info):
     entries = []
+
     if info["takes_email"]:
+        # Add special entry of type extra for the address
         args = (True, True, "extra", "emailAddress", "Email address", "")
         entries.append(EntryInfo(*args))
+
+    # Add the normal questions
     for type, title, key, required, options in zip(
         info["types"], info["titles"], info["keys"],
         info["required"], info["options"],
@@ -124,6 +131,7 @@ def entries_from_info(info):
         if options:
             title = f"{title} ({', '.join(options)})"
         entries.append(EntryInfo(required, True, type, key, title, ""))
+
     return entries
 
 # Iterator of config lines from info
@@ -134,7 +142,9 @@ def config_lines_from_info(info):
     # Note that the file was auto-generated
     yield "# Auto-generated using form.py"
 
+    # Put the form title / description for convenience
     yield f"# {info['form_title']}"
+    # Note that "".splitlines() returns [] (meaning nothing is yielded)
     for line in info["form_description"].splitlines():
         yield f"#   {line}"
 
