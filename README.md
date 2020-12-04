@@ -45,6 +45,10 @@ You can also run the following in case the program window closes immediately. Re
 > deactivate
 ```
 
+## Advanced
+
+If you want to specify the type of the argument that is being passed to `run convert`, you can add one of 3 mode flags: `--url`, `--file`, or `--shortcut`. The URL flag also accepts the 56 long string of characters in the address (the form ID).
+
 ## Config
 
 The *config.txt* file starts with the link to the Google Form (just copy from the address bar).

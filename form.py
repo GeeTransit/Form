@@ -329,6 +329,7 @@ converter.add_argument("origin",
 converter.add_argument("target", default="config.txt", nargs="?",
     help="target file to write converted config to")
 
+# form convert --...
 modes = converter.add_mutually_exclusive_group()
 modes.add_argument("-u", "--url", const="url",
     dest="mode", action="store_const",
@@ -543,7 +544,7 @@ if __name__ == "__main__":
             argv = convert_simple_argv(argv)
         args = parser.parse_args(argv)
         main(args)
-    except KeyboardInterrupt, EOFError:
+    except (KeyboardInterrupt, EOFError):
         pass  # Ignore Ctrl+C / Ctrl+Z
     except Exception:  # This won't catch Ctrl+C or sys.exit
         if not simple_run:
