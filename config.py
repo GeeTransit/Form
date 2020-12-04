@@ -141,6 +141,12 @@ class ConfigInfo:
             # Normal processing
             if not line:
                 continue
+            if line.startswith("#"):
+                # This is checked again because there could be another comment
+                # after the description.
+                continue
+
+            # Parse and add to the entries list
             entries.append(EntryInfo.from_string(line))
 
         # Make description an Optional[str]
@@ -149,7 +155,7 @@ class ConfigInfo:
         else:
             description = "\n".join(description)
 
-        return cls(url, entries, title, "\n".join(description))
+        return cls(url, entries, title, description)
 
     # Create entries from info
     # `info` needs "types", "titles", "keys", "required", and "options"
