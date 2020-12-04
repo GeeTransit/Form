@@ -184,19 +184,59 @@ def form_info(soup):
 
 # - Tests
 
+# Returns the test soup (cached)
+def test_get_soup(*, _soup=[None]):
+    if _soup[0] is None:
+        import requests
+        from bs4 import BeautifulSoup
+        form_id = "1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ"
+        response = requests.get(to_form_url(form_id))
+        _soup[0] = BeautifulSoup(response.text, "html.parser")
+    return _soup[0]
+
 # Test that the info from soup and from json match
 def test_info_soup_css():
-    import requests
-    from bs4 import BeautifulSoup
-
-    form_id = "1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ"
-    url = to_form_url(form_id)
-
-    response = requests.get(url)
-    soup = BeautifulSoup(response.text, "html.parser")
-
+    soup = test_get_soup()
     info_soup = info_using_soup(soup)
     info_json = info_using_json(form_json_data(soup))
 
     for key in info_soup.keys() & info_json.keys():
         assert info_soup[key] == info_json[key]
+
+# Test that the info has the required keys
+def test_info_keys():
+    soup = test_get_soup()
+    info = form_info(soup)
+
+    keys = filter(None, '''
+        form_url form_title form_description takes_email
+        types titles keys required options
+    '''.split())
+    for key in keys:
+        assert key in info
+
+# Test that the info has equal lengths for the question keys
+def test_info_keys():
+    soup = test_get_soup()
+    info = form_info(soup)
+
+    equals = "types titles keys required options".split()
+    first, *lengths = [len(info[equal]) for equal in equals]
+    assert all(length == first for length in lengths)
+
+# Test that FormInfo has inverse from_info and to_info functions
+def test_form_class_from_to():
+    soup = test_get_soup()
+    info = form_info(soup)
+
+    form = FormInfo.from_info(info)
+    assert form.to_info() == info
+
+# Test that FormInfo has inverse list_from_info and list_to_info functions
+def test_question_class_from_to():
+    soup = test_get_soup()
+    info = form_info(soup)
+
+    questions = QuestionInfo.list_from_info(info)
+    # This checks if the returned dict is a subset of info
+    assert info | QuestionInfo.list_to_info(questions) == info
