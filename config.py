@@ -48,16 +48,19 @@ class EntryInfo:
         """
         string = string.strip()
 
+        # Check if the entry is required
         if not string:
             raise ValueError("Empty entry")
         required = (string[0] == "*")
         string = string.removeprefix("*").strip()
 
+        # Check if the entry will use a prompt
         if not string:
             raise ValueError("Missing type")
         prompt = (string[0] == "!")
         string = string.removeprefix("!").strip()
 
+        # Get the entry type
         type, split, string = map(str.strip, string.partition("-"))
         for name, aliases in cls.TYPES.items():
             if type == name:
@@ -70,12 +73,14 @@ class EntryInfo:
         if not split:
             raise ValueError("Missing type-key split '-'")
 
+        # Get the entry key
         key, split, string = map(str.strip, string.partition(";"))
         if not key:
             raise ValueError("Missing key")
         if not split:
             raise ValueError("Missing key-title split ';'")
 
+        # Get the entry title / value
         title, split, value = map(str.strip, string.partition("="))
         if not title:
             title = key  # Title defaults to the key if absent.
@@ -137,6 +142,12 @@ class ConfigInfo:
             if not line:
                 continue
             entries.append(EntryInfo.from_string(line))
+
+        # Make description an Optional[str]
+        if not description:
+            description = None
+        else:
+            description = "\n".join(description)
 
         return cls(url, entries, title, "\n".join(description))
 
