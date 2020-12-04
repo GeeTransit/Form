@@ -54,6 +54,7 @@ def question_type(question):
 
 # Get the question title
 def question_title(question):
+    # .strings returns two strings: ["Question", "*" if required]
     return list(question.select_one(f"div.{FREEBIRD}BaseHeader").strings)[0]
 
 # Return whether the question is required
@@ -96,7 +97,7 @@ def info_using_json(json):
         return None
     return {
         "form_title": json[1][8],
-        "form_description": json[1][0],
+        "form_description": json[1][0] or "",  # Can be None
         "titles": [question[1] for question in questions],
         "keys": [question[4][0][0] for question in questions],
         "required": [bool(question[4][0][2]) for question in questions],
