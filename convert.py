@@ -40,6 +40,7 @@ class FormInfo:
         )
 
     def to_info(self):
+        # The two dicts should be merged because of how the info dict is made
         form = dict(
             form_url=self.url,
             form_title=self.title,
@@ -57,6 +58,7 @@ class QuestionInfo:
     required: bool
     options: Optional[list[str]]
 
+    # Note that `list_` classmethods take a list of QuestionInfos, not one
     @classmethod
     def list_from_soup(cls, soup):
         return cls.list_from_info(form_info(soup))
@@ -202,6 +204,7 @@ def test_all():
         try:
             result = func()
         except Exception as exc:
+            # Don't print stack trace here (just run the one function again)
             print(f"!   Failed: {exc!r}")
             continue
 
@@ -209,13 +212,15 @@ def test_all():
         if result is None:
             print("    Passed.")
         elif len(string := repr(result)) > 200:
+            # Long reprs (such as that of a soup) are truncated for readability
             print(f"    Passed: {string[:200]}...")
         else:
             print(f"    Passed: {string}")
 
 # Returns the test soup (cached)
-def test_get_soup(*, _soup=[None]):
-    if _soup[0] is None:
+def test_get_soup(*, _soup=[None], force=False):
+    if _soup[0] is None or force:
+        # The soup is stored in a default argument for subsequent uses
         import requests
         from bs4 import BeautifulSoup
         form_id = "1FAIpQLSfWiBiihYkMJcZEAOE3POOKXDv6p4Ox4rX_ZRsQwu77aql8kQ"
