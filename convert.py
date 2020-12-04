@@ -3,13 +3,88 @@
 # This module holds functions for converting a form. This includes CSS
 # selectors and JSON extraction.
 
+from __future__ import annotations
+
 import json
+from dataclasses import dataclass
 
 from config import EntryInfo
 from utils import to_form_url, to_normal_form_url
 
 # Constant freebird component class prefix
 FREEBIRD = "freebirdFormviewerComponentsQuestion"
+
+# - FormInfo / QuestionInfo classes
+# These mirror the info dicts used by various functions
+
+@dataclass
+class FormInfo:
+    url: str
+    title: str
+    description: str
+    takes_email: bool
+    questions: list[QuestionInfo]
+
+    @classmethod
+    def from_soup(cls, soup):
+        return cls.from_info(form_info(soup))
+
+    @classmethod
+    def from_info(cls, info):
+        return cls(
+            url=info["form_url"],
+            title=info["form_title"],
+            description=info["form_description"],
+            takes_email=info["takes_email"],
+            questions=QuestionInfo.list_from_info(info),
+        )
+
+    def to_info(self):
+        form = dict(
+            form_url=self.url,
+            form_title=self.title,
+            form_description=self.description,
+            takes_email=self.takes_email,
+        )
+        questions = QuestionInfo.list_to_info(self.questions)
+        return form | questions
+
+@dataclass
+class QuestionInfo:
+    type: str
+    title: str
+    key: str
+    required: bool
+    options: Optional[list[str]]
+
+    @classmethod
+    def list_from_soup(cls, soup):
+        return cls.list_from_info(form_info(soup))
+
+    @classmethod
+    def list_from_info(cls, info):
+        questions = []
+        zipped = zip(
+            info["types"], info["titles"], info["keys"],
+            info["required"], info["options"],
+        )
+        for type, title, key, required, options in zipped:
+            questions.append(cls(
+                type=type, title=title, key=key,
+                required=required, options=options,
+            ))
+        return questions
+
+    @classmethod
+    def list_to_info(cls, questions):
+        # This needs to be merged with the form info dict
+        return dict(
+            types=[question.type for question in questions],
+            titles=[question.title for question in questions],
+            keys=[question.key for question in questions],
+            required=[question.required for question in questions],
+            options=[question.options for question in questions],
+        )
 
 # - CSS Selectors
 
