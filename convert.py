@@ -184,6 +184,35 @@ def form_info(soup):
 
 # - Tests
 
+# Decorator to add test functions to the dict
+test_functions = {}
+def mark_test(func):
+    test_functions[func.__name__] = func
+    return func
+
+# Convenience function to run all tests
+def test_all():
+    # Have soup ready (precompute it and don't catch errors)
+    print("  test_get_soup (precompute)")
+    test_get_soup()
+
+    # Run all test functions added to `test_functions`
+    for name, func in test_functions.items():
+        print(f"  {name}")
+        try:
+            result = func()
+        except Exception as exc:
+            print(f"!   Failed: {exc!r}")
+            continue
+
+        # Successful test
+        if result is None:
+            print("    Passed.")
+        elif len(string := repr(result)) > 200:
+            print(f"    Passed: {string[:200]}...")
+        else:
+            print(f"    Passed: {string}")
+
 # Returns the test soup (cached)
 def test_get_soup(*, _soup=[None]):
     if _soup[0] is None:
@@ -195,6 +224,7 @@ def test_get_soup(*, _soup=[None]):
     return _soup[0]
 
 # Test that the info from soup and from json match
+@mark_test
 def test_info_soup_css():
     soup = test_get_soup()
     info_soup = info_using_soup(soup)
@@ -204,6 +234,7 @@ def test_info_soup_css():
         assert info_soup[key] == info_json[key]
 
 # Test that the info has the required keys
+@mark_test
 def test_info_keys():
     soup = test_get_soup()
     info = form_info(soup)
@@ -216,6 +247,7 @@ def test_info_keys():
         assert key in info
 
 # Test that the info has equal lengths for the question keys
+@mark_test
 def test_info_keys():
     soup = test_get_soup()
     info = form_info(soup)
@@ -225,6 +257,7 @@ def test_info_keys():
     assert all(length == first for length in lengths)
 
 # Test that FormInfo has inverse from_info and to_info functions
+@mark_test
 def test_form_class_from_to():
     soup = test_get_soup()
     info = form_info(soup)
@@ -233,6 +266,7 @@ def test_form_class_from_to():
     assert form.to_info() == info
 
 # Test that FormInfo has inverse list_from_info and list_to_info functions
+@mark_test
 def test_question_class_from_to():
     soup = test_get_soup()
     info = form_info(soup)
