@@ -17,17 +17,25 @@ PROMPTS = {
     "extra": "[Extra Data]",
 }
 
-def prompt_entry(entry):
+def prompt_entry(entry, *, prompts=PROMPTS):
     """
     Prompt for a value to the passed entry.
+
+    Print the entry's title and the appropriate hint (from the prompts dict).
+    If the user typed nothing, notify user to the default value (or that it
+    will be using an empty value). However, this message won't be printed if
+    there's no default value for a required question.
     """
-    value = input(f"{entry.title}: {PROMPTS[entry.type]} ").strip()
+    value = input(f"{entry.title}: {prompts[entry.type]} ").strip()
     if value:
         return value
 
-    if not (entry.required and not entry.value):
-        # Don't print this if it's required and there's no default
+    if entry.value:
+        # Print this if there is a default value
         print(f"Using default value: {entry.value}")
+    elif not entry.required:
+        # Print this if there's no default but its optional
+        print("Using empty value")
     return entry.value
 
 def print_error(error, entry, value):
