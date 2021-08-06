@@ -78,4 +78,4 @@ The `key` identifies the entry. It can be the entry ID in the form `entry.<id>` 
 
 The `title` is a human readable string that identifies the entry. If empty, it defaults to the entry. You can use this to show the question or to keep a description of a data entry.
 
-The `value` is the response to the question, or the value to the key. When the entry is to be prompted, the value will be used if the input is empty (defaults back to the value). If required, this cannot be empty.
+The `value` is the response to the question or the value to the key. When the entry is to be prompted, the value will be used if the input is empty (defaults back to the value). If required, this cannot be empty.
